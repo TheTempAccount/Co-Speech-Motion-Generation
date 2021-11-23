@@ -1,6 +1,4 @@
 # Free-form Co-Speech Motion Generation
-<!-- [Homepage](https://thetempaccount.github.io/Co-Speech-Motion-Generation/) -->
-[Homepage](currently disabled)
 ### Inference
 
     python generate_on_audio.py --model_name test --model_path pretrained_models/ckpt-48.pt 
