@@ -1,0 +1,25 @@
+python scripts/infer.py --gpu 0 \
+                        --exp_name exp_4_4 \
+                        --data_root ../pose_dataset/videos/ \
+                        --speakers Dan_Ariely \
+                        --epochs 50 \
+                        --save_every 2  \
+                        --print_every 100 \
+                        --normalization \
+                        --save_dir \
+                        ../experiments \
+                        --aud_decoding \
+                        --recon_input \
+                        --embed_dim 512 \
+                        --content_dim 0 \
+                        --noise_dim 256 \
+                        --seq_enc_hidden_size 512 \
+                        --seq_dec_hidden_size 512 \
+                        --latent_enc_fc_size 512 \
+                        --latent_enc_num_layers 3 \
+                        --latent_dec_num_layers 3 \
+                        --T_layer_norm \
+                        --rnn_cell lstm \
+                        --interaction concat \
+                        --infer \
+                        --model_path ../experiments/2021-12-07-exp_4_4-22:08:44/ckpt-49.pth
