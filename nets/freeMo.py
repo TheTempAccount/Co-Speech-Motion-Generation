@@ -45,7 +45,7 @@ class SeqEncoderWrapper(nn.Module):
 
 class SeqDecoderWrapper(nn.Module):
     '''
-    LSTM-FC. #: 两种选择，一种按照原来的那种，输入始终是一个固定的，另外一种是迭代式的，这里先实现成迭代式的
+    LSTM-FC. #: 两种选择，一种按照原来的那种，输入始终是一个固定的，另外一种是迭代式的，这里实现成迭代式的
     迭代式的decoder似乎会造成输出存在不自然抖动的问题
     '''
     def __init__(self,

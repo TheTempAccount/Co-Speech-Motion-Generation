@@ -109,7 +109,7 @@ class Trainer():
             self.trans_loader = data.DataLoader(self.trans_set, batch_size=self.args.batch_size, shuffle=True, num_workers=self.args.num_workers, drop_last=True) 
             self.zero_loader = data.DataLoader(self.zero_set, batch_size=self.args.batch_size, shuffle=True, num_workers=self.args.num_workers, drop_last=True)
             
-            #无法这样做，每个epoch之前都要重新初始化
+            # 
             # self.dataloader = zip(self.trans_loader, self.zero_loader)
 
         else:
@@ -146,8 +146,8 @@ class Trainer():
         torch.save(state_dict, save_name)
 
     def train_epoch(self):
-        #针对adversial training，稍后再看如何添加。这里实际上是generator的一个step
-        #TODO: 转移到wrapper中
+        #TODO: adversarial training
+        #TODO: 不同模型的逻辑不大一样，应该转移到wrapper中
         for bat in zip(self.trans_loader, self.zero_loader):
             self.global_steps += 1
             total_loss, loss_dict = self.generator(bat)

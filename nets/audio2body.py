@@ -53,7 +53,7 @@ class Generator(nn.Module):
         #inputs:(B, C, T)
         x = self.cell(x)
         x = x.permute(0, 2, 1)
-        #原文中flatten before FC，实际上和这里是等效的，fc的权重矩阵是hidden_size x pose_dim。原文中的写法在inference的时候只能用batch size为1
+        #原文中flatten before FC
         x = self.dropout(x)
         x = self.fc(x)
         x = x.permute(0, 2, 1)

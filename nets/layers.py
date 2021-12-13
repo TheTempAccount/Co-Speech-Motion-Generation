@@ -196,7 +196,6 @@ class UNet2D(nn.Module):
         raise NotImplementedError('2D Unet并不自然')
 
 #TODO: 这两个encoder的conv layers都是自动计算的，设定的时候最好需要清楚，也可以hard coded
-#作用：缓慢升高维度，T保持不变 进度：1D，2D(暂无实现)
 class AudioPoseEncoder1D(nn.Module):
     '''
     将audio的feat逐步提升
@@ -260,7 +259,7 @@ class AudioPoseEncoderRNN(nn.Module):
     '''
     RNN形式的encoder，主要改变维度
     (B, C, T)->(B, T, C)->(B, T, C_out)->(B, C_out, T)
-    #只使用了一个cell，通过堆叠多层。这里是encoding，所以不适合用两个cell的seq2seq
+    #只使用了一个cell，通过堆叠多层。
     #参考其他的使用bidrectional的做法，使用bidirectional的话，hidden_size会翻倍。不同的代码可能有不同的处理方式，这里直接返回，处理bidirectional的方式放在外部
     '''
     def __init__(self,
@@ -283,7 +282,6 @@ class AudioPoseEncoderRNN(nn.Module):
         x = x.permute(0, 2, 1) #(B, T, C)
         x, state = self.cell(x, state) #(B, T, hidden_size)
         x = x.permute(0, 2, 1)
-        #TODO: 是否返回RNN的state
         return x # 
         
 # seq encoder 进度：2D，1D，RNN
