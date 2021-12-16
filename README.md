@@ -2,6 +2,9 @@
 
 The repo for our work "Free-form Body Motion Generation from Speech" (paper comming soon).
 
+### Video Demo
+    [![](https://res.cloudinary.com/marcomontalbano/image/upload/v1639639637/video_to_markdown/images/youtube--HWZv0udfkAQ-c05b58ac6eb4c4700831b2b3070cd403.jpg)](https://youtu.be/HWZv0udfkAQ "")
+
 ### Directory Structure
 
     |--src //source code
