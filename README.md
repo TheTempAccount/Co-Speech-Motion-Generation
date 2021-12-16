@@ -22,8 +22,8 @@ The repo for our work "Free-form Body Motion Generation from Speech" (paper comm
     |   |--scripts //train.py & infer.py
     |   |--trainer //args and trainer
 
--[x](code)
--[](data)
+- [x] code 
+- [] data 
 
 ### Inference
 
