@@ -1,4 +1,6 @@
-from argparse import ArgumentParser
+from argparse import Action, ArgumentParser
+from numpy.core.arrayprint import str_format
+from torch.utils.data.dataloader import default_collate
 
 def parse_args():
     parser = ArgumentParser()
@@ -7,7 +9,7 @@ def parse_args():
     parser.add_argument('--exp_name', required=True, type=str)
     parser.add_argument('--data_root', required=True, type=str)
     parser.add_argument('--speakers', required=True, nargs='+')
-    parser.add_argument('--model_name', choices=['freeMo'], default='freeMo', type=str)
+    parser.add_argument('--model_name', choices=['freeMo', 'freeMo_paper'], default='freeMo', type=str)
     parser.add_argument('--shell_cmd', type=str)
     parser.add_argument('--batch_size', default=64, type=int)
     parser.add_argument('--num_workers', default=2, type=int)
@@ -39,8 +41,11 @@ def parse_args():
     parser.add_argument('--kl_start_weight', default=1e-5, type=float)
     parser.add_argument('--kl_decay_rate', default=0.99995, type=float)
     parser.add_argument('--vel_loss_weight', default=1, type=float)
+    parser.add_argument('--vel_start_weight', default=1e-5, type=float)
+    parser.add_argument('--vel_decay_rate', default=0.99995, type=float)
     parser.add_argument('--r_loss_weight', default=1, type=float)
     parser.add_argument('--zero_loss_weight', default=0, type=float)
+    parser.add_argument('--gan_loss_weight', default=1, type=float)
 
 
     parser.add_argument('--seq_enc_hidden_size', default=512, type=int)
@@ -58,9 +63,18 @@ def parse_args():
     parser.add_argument('--rnn_cell', default='gru', type=str)
     parser.add_argument('--bidirectional', action='store_true')
     
+    #for speech2gesture and template-vae
+    parser.add_argument('--use_template', action='store_true')
+    parser.add_argument('--template_length', default=0, type=int)
+
     #for inference
     parser.add_argument('--infer', action='store_true')
     parser.add_argument('--model_path', type=str)
+    
+    #兼容之前的代码需要的设置
+    parser.add_argument('--aud_feat_win_size', default=None, type=int)
+    parser.add_argument('--feat_method', default='mel_spec', type=str)
+    parser.add_argument('--aud_feat_dim', default=64, type=int)
     
     # args = parser.parse_args()
     return parser

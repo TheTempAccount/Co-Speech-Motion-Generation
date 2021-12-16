@@ -11,6 +11,7 @@ import numpy as np
 import json
 
 from nets import freeMo_Generator
+from repro_nets import paper_Generator
 from trainer.options import parse_args
 from data_utils import torch_data
 
@@ -18,6 +19,13 @@ def init_model(model_name, model_path, args):
     if model_name == 'freeMo':
         generator = freeMo_Generator(args)
         generator.load_state_dict(torch.load(model_path)['generator'])
+    elif model_name == 'freeMo_paper':
+        generator = paper_Generator(args)
+        model_ckpt = torch.load(model_path)
+        if 'generator' in list(model_ckpt.keys()):
+            generator.load_state_dict(model_ckpt['generator'])
+        else:
+            generator.load_state_dict(model_ckpt)
     else:
         raise NotImplementedError
     
@@ -37,6 +45,9 @@ def init_dataloader(data_root, speakers, args):
         normalization=args.normalization,
         split_trans_zero=False,
         num_pre_frames=args.pre_pose_length,
+        aud_feat_win_size=args.aud_feat_win_size,
+        aud_feat_dim=args.aud_feat_dim,
+        feat_method=args.feat_method
     )
     if args.normalization:
         norm_stats_fn = os.path.join(os.path.dirname(args.model_path), "norm_stats.npy")

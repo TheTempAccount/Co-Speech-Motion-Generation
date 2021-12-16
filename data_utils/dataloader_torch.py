@@ -30,6 +30,7 @@ class PoseDataset():
                 fps,
                 feat_method='mel_spec',
                 audio_feat_dim=64,
+                audio_feat_win_size=None,
 
                 train=True,
                 load_all=False,
@@ -46,6 +47,7 @@ class PoseDataset():
         self.audio_sr = audio_sr
         self.fps = fps
         self.audio_feat_dim = audio_feat_dim
+        self.audio_feat_win_size = audio_feat_win_size
 
         self.train=train
         self.load_all = load_all
@@ -140,7 +142,12 @@ class PoseDataset():
         if self.feat_method == 'mel_spec':
             self.audio_feat = get_melspec(self.audio_fn, fps = self.fps, sr = self.audio_sr, n_mels=self.audio_feat_dim)
         elif self.feat_method == 'mfcc':
-            self.audio_feat = get_mfcc(self.audio_fn, fps = self.fps, sr = self.audio_sr, n_mfcc=self.audio_feat_dim)
+            self.audio_feat = get_mfcc(self.audio_fn, 
+                                        fps = self.fps, 
+                                        sr = self.audio_sr, 
+                                        n_mfcc=self.audio_feat_dim, 
+                                        win_size=self.audio_feat_win_size
+                                    )
 
         if split_trans_zero:
             self.generate_all_trans_frames()
@@ -216,11 +223,19 @@ class PoseDataset():
                 '''
                 音频特征，不包含pre的
                 '''
-                audio_feat = self.audio_feat[index+num_pre_frames:index+seq_len, ...]#(num_frames, audio_feat_dim)
-                if audio_feat.shape[0] < self.num_frames:
-                    audio_feat = np.pad(audio_feat, [[0, self.num_frames-audio_feat.shape[0]], [0, 0]], mode='reflect')
-                
-                assert audio_feat.shape[0] == self.num_frames and audio_feat.shape[1] == self.audio_feat_dim
+                if self.audio_feat_win_size is None:
+                    audio_feat = self.audio_feat[index+num_pre_frames:index+seq_len, ...]#(num_frames, audio_feat_dim)
+                    if audio_feat.shape[0] < self.num_frames:
+                        audio_feat = np.pad(audio_feat, [[0, self.num_frames-audio_feat.shape[0]], [0, 0]], mode='reflect')
+                    
+                    assert audio_feat.shape[0] == self.num_frames and audio_feat.shape[1] == self.audio_feat_dim
+                else:
+                    start_sec = (index + num_frames) / 25 #(这么多秒)
+                    start_steps = int(start_sec / 0.01) #mfcc feature中的起始点
+                    mfcc_feature = self.audio_feat[start_steps:start_steps+100, :]#1s，对应100个steps 最后一个time_step很长
+                    if mfcc_feature.shape[0] != 100:
+                        mfcc_feature = np.pad(mfcc_feature, [[0, 100 - mfcc_feature.shape[-1]], [0, 0]], mode='reflect')
+                    audio_feat = mfcc_feature
 
                 if child.normalization:
                     data_mean = child.normalize_stats['mean'].reshape(1, 108)
@@ -272,7 +287,10 @@ class MultiVidData():
                 normalization=False,
                 split_trans_zero=False,
                 num_frames=25,
-                num_pre_frames=25
+                num_pre_frames=25,
+                aud_feat_win_size=None,
+                aud_feat_dim=64,
+                feat_method='mel_spec'
                 ):
         self.data_root = data_root
         self.speakers = speakers
@@ -315,14 +333,15 @@ class MultiVidData():
                         #TODO: 这些值的指定，不要hard_coded
                         audio_sr=16000,
                         fps=25,
-                        feat_method='mel_spec',
-                        audio_feat_dim=64,
+                        feat_method=feat_method,
+                        audio_feat_dim=aud_feat_dim,
                         train=(self.split=='train'),
                         load_all=True,
                         split_trans_zero=self.split_trans_zero,
                         limbscaling=self.limbscaling,
                         num_frames=self.num_frames,
-                        num_pre_frames=self.num_pre_frames
+                        num_pre_frames=self.num_pre_frames,
+                        audio_feat_win_size=aud_feat_win_size
                     )
                     self.complete_data.append(self.dataset[key].complete_data)
 
@@ -369,11 +388,11 @@ if __name__ == '__main__':
     test_set_base = MultiVidData(
         data_root='../pose_dataset/videos',
         speakers=['Dena_Simmons'],
-        split='train',
+        split='test',
         limbscaling=False,
         normalization=False,
         split_trans_zero=False,
-        num_pre_frames=25, num_frames=25
+        num_pre_frames=25, num_frames=25, aud_feat_win_size=100, feat_method='mfcc', aud_feat_dim=13
     )
 
     # test_set_base.get_dataset()

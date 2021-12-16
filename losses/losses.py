@@ -1,6 +1,7 @@
 import os
 import sys
 from typing import ForwardRef
+
 sys.path.append(os.getcwd())
 
 import torch
@@ -70,3 +71,5 @@ class AudioLoss(nn.Module):
         mean = torch.mean(gt_poses, dim=-1).unsqueeze(-1)
         gt = gt_poses - mean
         return F.mse_loss(dynamics, gt_poses)
+
+L1Loss = nn.L1Loss

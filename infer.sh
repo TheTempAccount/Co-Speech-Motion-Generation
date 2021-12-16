@@ -1,7 +1,8 @@
 python scripts/infer.py --gpu 0 \
-                        --exp_name exp_4_4 \
+                        --exp_name paper_model \
                         --data_root ../pose_dataset/videos/ \
                         --speakers Dan_Ariely \
+                        --model_name freeMo_paper \
                         --epochs 50 \
                         --save_every 2  \
                         --print_every 100 \
@@ -10,16 +11,20 @@ python scripts/infer.py --gpu 0 \
                         ../experiments \
                         --aud_decoding \
                         --recon_input \
-                        --embed_dim 512 \
-                        --content_dim 0 \
-                        --noise_dim 256 \
-                        --seq_enc_hidden_size 512 \
-                        --seq_dec_hidden_size 512 \
-                        --latent_enc_fc_size 512 \
-                        --latent_enc_num_layers 3 \
-                        --latent_dec_num_layers 3 \
+                        --embed_dim 1024 \
+                        --content_dim 512 \
+                        --noise_dim 512 \
+                        --seq_enc_hidden_size 1024 \
+                        --seq_dec_hidden_size 1024 \
+                        --latent_enc_fc_size 1024 \
+                        --latent_enc_num_layers 1 \
+                        --latent_dec_num_layers 1 \
                         --T_layer_norm \
                         --rnn_cell lstm \
-                        --interaction concat \
+                        --interaction add \
                         --infer \
-                        --model_path ../experiments/2021-12-07-exp_4_4-22:08:44/ckpt-49.pth
+                        --model_path ../MT-VAE-v0.4/code_appendix/pretrained_models/ckpt-48.pt \
+                        --aud_feat_win_size 100 \
+                        --feat_method mfcc \
+                        --aud_feat_dim 13 \
+

@@ -1,1 +1,1 @@
-from .losses import KeypointLoss, KLLoss, VelocityLoss, L2RegLoss, AudioLoss
+from .losses import *

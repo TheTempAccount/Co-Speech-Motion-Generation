@@ -94,7 +94,10 @@ class Trainer():
                 normalization=self.args.normalization,
                 split_trans_zero=True,
                 num_pre_frames=self.args.pre_pose_length,
-                num_frames=self.args.generate_length
+                num_frames=self.args.generate_length,
+                aud_feat_win_size=self.args.aud_feat_win_size,
+                aud_feat_dim=self.args.aud_feat_dim,
+                feat_method=self.args.feat_method
             )
 
             if self.args.normalization:
@@ -109,7 +112,7 @@ class Trainer():
             self.trans_loader = data.DataLoader(self.trans_set, batch_size=self.args.batch_size, shuffle=True, num_workers=self.args.num_workers, drop_last=True) 
             self.zero_loader = data.DataLoader(self.zero_set, batch_size=self.args.batch_size, shuffle=True, num_workers=self.args.num_workers, drop_last=True)
             
-            # 
+            #无法这样做，每个epoch之前都要重新初始化
             # self.dataloader = zip(self.trans_loader, self.zero_loader)
 
         else:
@@ -146,17 +149,11 @@ class Trainer():
         torch.save(state_dict, save_name)
 
     def train_epoch(self):
-        #TODO: adversarial training
-        #TODO: 不同模型的逻辑不大一样，应该转移到wrapper中
+        #针对adversial training，稍后再看如何添加。这里实际上是generator的一个step
+        #TODO: 转移到wrapper中
         for bat in zip(self.trans_loader, self.zero_loader):
             self.global_steps += 1
-            total_loss, loss_dict = self.generator(bat)
-
-            self.generator_optimizer.zero_grad()
-            total_loss.backward()
-            grad = torch.nn.utils.clip_grad_norm(self.generator.parameters(), self.args.max_gradient_norm)
-            loss_dict['grad'] = grad
-            self.generator_optimizer.step()
+            _, loss_dict = self.generator(bat)
 
             if self.global_steps % self.args.print_every == 0:
                 self.print_func(loss_dict)

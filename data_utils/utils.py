@@ -11,10 +11,14 @@ def load_wav(audio_fn, sr = 16000):
     y, sr = librosa.load(audio_fn, sr = sr, mono=True)    
     return y, sr
 
-def get_mfcc(audio_fn, eps=1e-6, fps=25, sr=16000, n_mfcc=64):#MFCC的取值范围很大
+def get_mfcc(audio_fn, eps=1e-6, fps=25, sr=16000, n_mfcc=64, win_size=None):#MFCC的取值范围很大
     y, sr = load_wav(audio_fn, sr=sr)
 
-    hop_len=int(sr / fps)#步长
+    if win_size is None:
+        hop_len=int(sr / fps)#步长
+    else:
+        hop_len=int(sr/ win_size)
+        
     n_fft=2048 #或者可以指定为sr*0.02这种，即窗口大小为0.02秒, 2048就是0.128秒
 
     C = librosa.feature.mfcc(

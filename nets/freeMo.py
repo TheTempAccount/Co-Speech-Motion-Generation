@@ -1,12 +1,13 @@
 import os
 import sys
-from typing import ClassVar
 
 sys.path.append(os.getcwd())
 
 import torch
 import torch.nn as nn
+import torch.optim as optim
 from nets.layers import *
+from nets.base import TrainWrapperBaseClass
 from losses import KeypointLoss, KLLoss, VelocityLoss, L2RegLoss, AudioLoss
 from nets.utils import parse_audio, denormalize
 from data_utils import get_mfcc, get_melspec
@@ -45,7 +46,7 @@ class SeqEncoderWrapper(nn.Module):
 
 class SeqDecoderWrapper(nn.Module):
     '''
-    LSTM-FC. #: 两种选择，一种按照原来的那种，输入始终是一个固定的，另外一种是迭代式的，这里实现成迭代式的
+    LSTM-FC. #: 两种选择，一种按照原来的那种，输入始终是一个固定的，另外一种是迭代式的，这里先实现成迭代式的
     迭代式的decoder似乎会造成输出存在不自然抖动的问题
     '''
     def __init__(self,
@@ -493,7 +494,7 @@ class Generator(nn.Module):
 
             return pred_poses
 
-class TrainWrapper():
+class TrainWrapper(TrainWrapperBaseClass):
     '''
     一个wrapper使其接受data_utils给出的数据，前向运算得到loss，将inference的代码也写在这吧
     '''
@@ -532,6 +533,19 @@ class TrainWrapper():
         #为了计算kl的权重
         self.global_step = 0
     
+    def init_optimizer(self) -> None:
+        self.generator_optimizer = optim.Adam(
+            self.generator.parameters(),
+            lr = self.args.generator_learning_rate,
+            betas=[0.9, 0.999]
+        )
+        if self.discriminator is not None:
+            self.discriminator_optimizer = optim.Adam(
+                self.discriminator.parameters(),
+                lr = self.args.discriminator_learning_rate,
+                betas=[0.9, 0.999]
+            )
+
     def __call__(self, bat):
         assert (not self.args.infer), "infer mode"
         self.global_step += 1
@@ -588,6 +602,12 @@ class TrainWrapper():
         loss_dict = {}
         for key in list(trans_dict.keys()):
             loss_dict[key] = trans_dict[key] + zero_dict[key]
+
+        self.generator_optimizer.zero_grad()
+        total_loss.backward()
+        grad = torch.nn.utils.clip_grad_norm(self.generator.parameters(), self.args.max_gradient_norm)
+        loss_dict['grad'] = grad
+        self.generator_optimizer.step()
         
         return total_loss, loss_dict
 

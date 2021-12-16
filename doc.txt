@@ -1,0 +1,68 @@
+数据格式：
+    {   'pose': (B, T_1, D), 
+        'aud': (B, T_1, D), 
+        'pre_pose': (B, T_2, D), 
+        'speaker': (1)
+    }
+    需要做的：支持任意的feat_bins，和任意的采样数量，不一定非得是num_frames
+
+layers:
+    ConvBNReLU：添加了residual
+
+    Unet: 可以对Channel改变，但是主要还是T的压缩和扩张，1D。暂时没有实现基于插值的应用于任意大小。
+          原始的Unet论文：对x上采样之后与skip concat，然后是attention->conv->attention->conv
+
+    AudioPoseEncoder: 缓慢改变维度，T保持不变. 存在的问题是当C_out大于C_in的时候怎么办
+        1D: 每次维度乘以2,计算需要多少次卷积
+        2D: 没有实现。speech2gesutre中的做法是将C_in下采样到1，用插值的方法恢复T
+        RNN：使用一个cell的encoder，输出是每个时间步骤的输出，
+
+    SeqEncoder: 将一个序列编码成一个向量，只能针对固定的T.
+        1D：缓慢将C_in提升到C_out，同时压缩T到1. 应该不会有很多层
+        2D：缓慢从1升维到C_out同时缓慢将H，W压缩到1.可能存在的问题是层数过多
+        RNN：一个cell。使用hidden作为encoding。如果bidirectional=False的话，则是output[:, -1, :]，如果bidirectional=True，则是output[:, 0, hidden_size:] 与 output[:, -1, :hidden_size]的叠加。这样的话对于GRU和LSTM均是一样的。这里实际上可以使用AudioPoseEncoder，然后在外部写embedding具体是什么。还是要参考一下通用的做法
+
+    SeqDecoder: 将一个向量解码成一个序列，只针对固定的T
+        1D: 首先将D变换成C_out，然后逐步上采样到T。可能存在的问题是改变维度是否可以考虑更缓慢的变化方式，这里有可能升高有可能降低。没有考虑到初始姿势，但是可以用SeqTranslator的方式
+        2D: 没有实现。
+        RNN：将输入的向量作为hidden，使用一个frame_0作为初始化。一个rnn cell加一个FC的形式。不存在bidirectional的情况。输入的embedding大小必须和hidden_size相同，且hidden的shape的调整放在了外面。现在对于LSTM和GRU均兼容
+
+    SeqTranslator：将一个序列变换成另一个序列，主要改变维度，没有对T的操作
+        1D：改变C_in到C_out，然后添加额外的卷积层。和Encoder不同的只有不是缓慢升高维度。C_out不一定比C_in大
+        2D：没有实现
+        RNN：两个RNN cell加一个FC的encoder-decoder形式，接受一个frame_0作为输入的一步一步的生成。不存在bidirectional的情况
+
+    ResBlock：不包含norm操作的多个FC层和shortcut层
+
+model:
+    speech2gesture, Template 基本和原始代码一致
+    audio2body: 和原始代码一致
+    Trimodal: 尚未检查原始代码
+    mix-stage: 尚未实现
+    Free-Mo: 和之前的代码并不是完全一致的
+
+Free-Mo:
+    1. SeqEncoderWrapper SeqEncoderRNN+FC层
+        支持gru和lstm，bidirectional与否
+
+    2. SeqDecoderWrapper SeqDecoderRNN
+        与原始实现不同的是，这里使用迭代式的生成，原始的是用一个固定的输入(style)
+        支持gru和lstm
+
+    3. LatentEncoderWrapper:
+        见框图。需要尝试的：LayerNorm和BatchNorm; latent_fc_layers对concat和add两种interaction是否用不同的
+        添加了需不需要使用content/style的区分与否
+
+    4. LatentDecoderWrapper:
+        见框图。需要尝试的：
+                1、两处的Linear没有使用ReLU。
+                2、interaction_fc layer前是否将z与prev_style进行叠加
+        添加了是否对content和style进行区分，以及对lstm和gru的支持
+        content在前
+
+    5. TODO:检查poses和pre_poses的定义
+
+Trainer
+    loss: 
+        1. cycle model: 暂不使用
+        2. 
