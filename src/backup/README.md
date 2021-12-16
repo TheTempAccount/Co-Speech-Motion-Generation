@@ -1,11 +1,12 @@
 # Free-form Co-Speech Motion Generation
+
 ### Inference
 
-    python generate_on_audio.py --model_name test --model_path pretrained_models/ckpt-48.pt 
-    --initial_pose sample_initial_pose/bill_initial.npy 
-    --audio_path sample_audio/clip000040_TWeBl1yQ1oI.wav 
-    --textgrid_path sample_audio/clip000040_TWeBl1yQ1oI.TextGrid 
-    --audio_decoding --normalization --noise_size 512 --sample_index 0,10,20
+    python generate_on_audio.py --model_name test --model_path ../../pretrained_models/ckpt-48.pt 
+    --initial_pose ../../sample_initial_pose/bill_initial.npy 
+    --audio_path ../../sample_audio/clip000040_TWeBl1yQ1oI.wav 
+    --textgrid_path ../../sample_audio/clip000040_TWeBl1yQ1oI.TextGrid 
+    --audio_decoding --normalization --noise_size 512 --sample_index 0 10 20
 
 The result will be different every time you run the script.
 The results will be saved in "results/[model_name]", including the json file of 64 randomly generated motion sequences and the visualized videos. 

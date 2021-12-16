@@ -1,8 +1,4 @@
 from __future__ import absolute_import
-from enum import Flag
-from numpy.core.defchararray import not_equal
-
-from torch.functional import norm
 
 import math
 import os
@@ -11,7 +7,7 @@ import sys
 
 from torch.serialization import save
 from torch.utils import data
-sys.path.append('..')
+sys.path.append(os.getcwd())
 
 import time
 import argparse
@@ -273,17 +269,9 @@ if FLAGS.visualize:
     import subprocess
     import shutil
     print('making video')
-    from visualize import *
+    from src.visualise.draw_utils import *
     sample_index = FLAGS.sample_index
     pred_res = smooth(pred_res)
-
-    #make a fake gt poses
-    # his_landmarks = np.load(init_pose, allow_pickle=True)[0]#(64, 25, 108)
-    # gt_poses = np.concatenate([his_landmarks, his_landmarks[::-1, :]], axis=0)#(50, 108)
-    # seq_len = pred_res.shape[1]
-    # while gt_poses.shape[0] < seq_len:
-    #     gt_poses = np.concatenate([gt_poses, gt_poses], axis=0)
-    # print(gt_poses.shape)
 
     for index in sample_index:
         poses = cvt25(pred_res[index])
