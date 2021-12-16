@@ -55,7 +55,7 @@ checker_stats={
         "finger_velocity": [[0.08, 0.08, 0.08, 0.08], [0.06, 0.06, 0.06, 0.06], [0.15, 0.15, 0.15, 0.15]]
     },
 
-    'Dan_Ariely': {# (39159, 55433)
+    'Dan_Ariely': {
         "finger_distance": 0.9,
         "finger_angle": 0.3,
         "finger_offset": [1.5, 1.5],
@@ -65,7 +65,7 @@ checker_stats={
         "negative_thres": 2
     },
 
-    'Bill_Gates': {#(29909, 43652)
+    'Bill_Gates': {
         "finger_distance": 0.9,
         "finger_angle": 0.3,
         "finger_offset": [1.5, 1.5],
@@ -75,7 +75,7 @@ checker_stats={
         "negative_thres": 2
     },
 
-    'Amel_Karboul': {#(5929, 16541)
+    'Amel_Karboul': {
         "finger_distance": 0.9,
         "finger_angle": 0.3,
         "finger_offset": [1.5, 1.5],
@@ -85,7 +85,7 @@ checker_stats={
         "negative_thres": 2
     },
 
-    'Christina_Wallace': {#(7430, 25672)
+    'Christina_Wallace': {
         "finger_distance": 0.9,
         "finger_angle": 0.3,
         "finger_offset": [1.5, 1.5],
@@ -95,7 +95,7 @@ checker_stats={
         "negative_thres": 2
     },
 
-    'daniel_susskind': {#(21181 54479)
+    'daniel_susskind': {
         "finger_distance": 0.9,
         "finger_angle": 0.3,
         "finger_offset": [1.5, 1.5],
@@ -105,7 +105,7 @@ checker_stats={
         "negative_thres": 2
     },
 
-    'Dena_Simmons': {#(6401 14457)
+    'Dena_Simmons': {
         "finger_distance": 0.9,
         "finger_angle": 0.3,
         "finger_offset": [1.5, 1.5],
@@ -115,7 +115,7 @@ checker_stats={
         "negative_thres": 2
     },
 
-    'Enric_Sala': {#(3238 8785)
+    'Enric_Sala': {
         "finger_distance": 0.9,
         "finger_angle": 0.3,
         "finger_offset": [1.5, 1.5],
@@ -125,17 +125,7 @@ checker_stats={
         "negative_thres": 2
     },
 
-    'FeiFei_Li': {#(8688 19626)
-        "finger_distance": 0.9,
-        "finger_angle": 0.3,
-        "finger_offset": [1.5, 1.5],
-        "finger_position": [1.5, 1.5, 1.5, 1.5],
-        "finger_velocity": [[0.08, 0.08, 0.08, 0.08], [0.06, 0.06, 0.06, 0.06], [0.15, 0.15, 0.15, 0.15]],
-        "positive_thres": 2,
-        "negative_thres": -1
-    },
-
-    'GabeBarcia_Colombo': {#(2643, 2578)
+    'FeiFei_Li': {
         "finger_distance": 0.9,
         "finger_angle": 0.3,
         "finger_offset": [1.5, 1.5],
@@ -145,7 +135,17 @@ checker_stats={
         "negative_thres": -1
     },
 
-    'Keller_Rinaudo': { #(4020 10645)
+    'GabeBarcia_Colombo': {
+        "finger_distance": 0.9,
+        "finger_angle": 0.3,
+        "finger_offset": [1.5, 1.5],
+        "finger_position": [1.5, 1.5, 1.5, 1.5],
+        "finger_velocity": [[0.08, 0.08, 0.08, 0.08], [0.06, 0.06, 0.06, 0.06], [0.15, 0.15, 0.15, 0.15]],
+        "positive_thres": 2,
+        "negative_thres": -1
+    },
+
+    'Keller_Rinaudo': { 
         "finger_distance": 0.9,
         "finger_angle": 0.3,
         "finger_offset": [1.5, 1.5],
@@ -155,7 +155,7 @@ checker_stats={
         "negative_thres": -1
     },
 
-    'Kelly_Richmond_Pope': {#(2572 5285)
+    'Kelly_Richmond_Pope': {
         "finger_distance": 0.9,
         "finger_angle": 0.3,
         "finger_offset": [1.5, 1.5],
@@ -165,7 +165,7 @@ checker_stats={
         "negative_thres": 2
     },
 
-    'Laurel_Braitman': {#(3852 6617)
+    'Laurel_Braitman': {
         "finger_distance": 0.9,
         "finger_angle": 0.3,
         "finger_offset": [1.5, 1.5],
@@ -175,7 +175,7 @@ checker_stats={
         "negative_thres": 2
     },
 
-    'Lisa_Feldman_Barrett': {#(6089 16220)
+    'Lisa_Feldman_Barrett': {
         "finger_distance": 0.9,
         "finger_angle": 0.3,
         "finger_offset": [1.5, 1.5],
@@ -185,7 +185,7 @@ checker_stats={
         "negative_thres": 2
     },
 
-    'molly_winter': {#(3011 5107)
+    'molly_winter': {
         "finger_distance": 0.9,
         "finger_angle": 0.3,
         "finger_offset": [1.5, 1.5],
@@ -195,7 +195,7 @@ checker_stats={
         "negative_thres": 2
     },
 
-    'Sara_DeWitt': {#(6577 23223)
+    'Sara_DeWitt': {
         "finger_distance": 0.9,
         "finger_angle": 0.3,
         "finger_offset": [1.5, 1.5],
@@ -205,7 +205,7 @@ checker_stats={
         "negative_thres": 2
     },
 
-    'Seema_Bansal': {#(3742 9049)
+    'Seema_Bansal': {
         "finger_distance": 0.9,
         "finger_angle": 0.3,
         "finger_offset": [1.5, 1.5],
@@ -215,7 +215,7 @@ checker_stats={
         "negative_thres": 2
     },
 
-    'Vicki_Arroyo': {#(2846 8667)
+    'Vicki_Arroyo': {
         "finger_distance": 0.9,
         "finger_angle": 0.3,
         "finger_offset": [1.5, 1.5],
@@ -225,7 +225,7 @@ checker_stats={
         "negative_thres": 2
     },
 
-    'Stacy_Smith_no_good': {#9180 19718
+    'Stacy_Smith_no_good': {
         "finger_distance": 0.9,
         "finger_angle": 0.3,
         "finger_offset": [1.5, 1.5],
@@ -235,7 +235,7 @@ checker_stats={
         "negative_thres": 2
     },
 
-    'Stanley_McChrystal': {#(27194 55097),
+    'Stanley_McChrystal': {
         "finger_distance": 0.9,
         "finger_angle": 0.3,
         "finger_offset": [1.5, 1.5],

@@ -32,7 +32,7 @@ class AudioEncoder(nn.Module):
         self.model = nn.Sequential(*model)
 
     def forward(self, x):
-        #x:batch_size, 13, 100
+        
         x = x[:, :self.in_channels, :]
         x = self.model(x)
         return x
@@ -85,19 +85,19 @@ class Audio2Pose(nn.Module):
             )
 
     def forward(self, audio_feat, dec_input = None):
-        #audio_feat: (B, C, T)
+        
         B = audio_feat.shape[0]
 
-        aud_embed = self.aud_enc.forward(audio_feat)#(B, 256, 4)
+        aud_embed = self.aud_enc.forward(audio_feat)
 
         if self.augmentation:
-            dec_input = dec_input.squeeze(0) #(B, embed_size // 2)
-            dec_embed = self.pose_enc(dec_input) #(B, 256)
-            dec_embed = dec_embed.unsqueeze(2) #(B, 256, 1)
+            dec_input = dec_input.squeeze(0) 
+            dec_embed = self.pose_enc(dec_input) 
+            dec_embed = dec_embed.unsqueeze(2) 
             dec_embed = dec_embed.expand(dec_embed.shape[0], dec_embed.shape[1], aud_embed.shape[-1])
-            aud_embed = torch.cat([aud_embed, dec_embed], dim=1) #(B, 512, 1)
+            aud_embed = torch.cat([aud_embed, dec_embed], dim=1) 
 
-        out = self.aud_dec.forward(aud_embed) # 
+        out = self.aud_dec.forward(aud_embed) 
         return out
 
 if __name__ == '__main__':

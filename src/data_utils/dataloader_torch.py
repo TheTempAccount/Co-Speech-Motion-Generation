@@ -38,7 +38,7 @@ class PoseDataset():
                 limbscaling=False, 
                 num_frames=25, 
                 num_pre_frames=25):
-        #必须保持和其他位置代码的一致性，这里在读取数据的时候生成label，即transition_period，仅仅需要修改读取trans_frames的计算。
+        
         self.data_root=data_root
         self.speaker = speaker
 
@@ -76,16 +76,16 @@ class PoseDataset():
         self.loaded_data={}
         self.conf={}
         self.complete_data=[]
-        upper_body_points = [0, 1, 2, 3, 4, 5, 6, 7, 15, 16, 17, 18]#共12个点
+        upper_body_points = [0, 1, 2, 3, 4, 5, 6, 7, 15, 16, 17, 18]
         
         neck_to_nose_len = []
         mean_position = []
         for img_name_ori in self.img_name_list:
-            img_name=os.path.splitext(os.path.basename(img_name_ori))[0]#img name
+            img_name=os.path.splitext(os.path.basename(img_name_ori))[0]
             annotation_file=os.path.join(self.data_root, 'keypoints', img_name+'.json')
             if not os.path.isfile(annotation_file):
                 continue
-            annotation=json.load(open(annotation_file))['people'][0]#(25*3)的list
+            annotation=json.load(open(annotation_file))['people'][0]
 
             posepts=annotation['pose_keypoints_2d']
             hand_left_pts=annotation['hand_left_keypoints_2d']
@@ -98,9 +98,9 @@ class PoseDataset():
             neck_to_nose_len.append(y_offset)
             mean_position.append([neck[0],neck[1]])
             
-            #save loaded keypoints
+            
             keypoints=np.array(posepts+hand_left_pts+hand_right_pts).reshape(-1,3)[:,:2]
-            conf=np.array(posepts+hand_left_pts+hand_right_pts).reshape(-1,3)[:,2:]#(N,1)
+            conf=np.array(posepts+hand_left_pts+hand_right_pts).reshape(-1,3)[:,2:]
 
             upper_body = keypoints[upper_body_points, :]
             hand_points = keypoints[25:, :]
@@ -113,7 +113,7 @@ class PoseDataset():
             assert (keypoints.shape[0]==12+21+21) and (keypoints.shape[1]==2)
             assert (conf.shape[0]==12+21+21) and (conf.shape[1]==2)
             
-            self.conf[img_name] = conf.reshape(-1)#(N, 1)，每个检测点的坐标的confdience
+            self.conf[img_name] = conf.reshape(-1)
             self.loaded_data[img_name]=keypoints.reshape(-1)
     
         
@@ -127,17 +127,17 @@ class PoseDataset():
         self.localize_stats = (scale_factor, mean_position)
 
         for img_name in self.img_name_list:
-            img_name=os.path.splitext(os.path.basename(img_name))[0]#img name
+            img_name=os.path.splitext(os.path.basename(img_name))[0]
             keypoints = np.array(self.loaded_data[img_name]).reshape(-1,2)
             assert keypoints.shape[0] == 12+21+21
-            neck = keypoints[1].copy()#减去这一帧的neck的位置
+            neck = keypoints[1].copy()
 
-            keypoints[:, 0] = (keypoints[:, 0] - neck[0]) / scale_factor #除以当前视频的neck到nose的长度
+            keypoints[:, 0] = (keypoints[:, 0] - neck[0]) / scale_factor 
             keypoints[:, 1] = (keypoints[:, 1] - neck[1]) / scale_factor
             self.loaded_data[img_name] = keypoints.reshape(-1)
             self.complete_data.append(keypoints.reshape(-1))
 
-        self.complete_data=np.array(self.complete_data)#(num_frames, 25*2)
+        self.complete_data=np.array(self.complete_data)
 
         if self.feat_method == 'mel_spec':
             self.audio_feat = get_melspec(self.audio_fn, fps = self.fps, sr = self.audio_sr, n_mels=self.audio_feat_dim)
@@ -153,22 +153,22 @@ class PoseDataset():
             self.generate_all_trans_frames()
 
     def generate_all_trans_frames(self):
-        #TODO: 优化这里的代码，用batch的形式，空间换时间试试看
+        
         self.trans_frames = []
         self.zero_frames = []
         seq_len = self.num_frames+self.num_pre_frames
-        for index in range(0, len(self)-seq_len-1):#多减去一个，因为不想取到最后的那一帧
+        for index in range(0, len(self)-seq_len-1):
             seq_data=[]
             conf=[]
             for i in range(index, index+seq_len):
                 img_name=self.img_name_list[i]
-                img_name=os.path.splitext(os.path.basename(img_name))[0]#img name
-                pose_at_i=self.loaded_data[img_name]#(25*2)
-                conf_at_i=self.conf[img_name]#(N*1)
+                img_name=os.path.splitext(os.path.basename(img_name))[0]
+                pose_at_i=self.loaded_data[img_name]
+                conf_at_i=self.conf[img_name]
                 conf.append(conf_at_i)
                 seq_data.append(pose_at_i)
-            seq_data=np.array(seq_data)#(seq_len, 25*2)
-            conf=np.array(conf)#(seq_len, N*1)
+            seq_data=np.array(seq_data)
+            conf=np.array(conf)
 
             label = auto_label(seq_data, conf, speaker=self.speaker)
             if label  == 1:
@@ -179,7 +179,7 @@ class PoseDataset():
                 pass
 
     def get_dataset(self, normalization=False, normalize_stats=None):
-        #随机获取一个
+        
         class __Worker__(data.Dataset):
             def __init__(child, index_list, normalization, normalize_stats, name='trans') -> None:
                 super().__init__()
@@ -189,8 +189,8 @@ class PoseDataset():
                 child.name = name
 
             def __getitem__(child, index):
-                #这个返回一个长为tiem_seq的动作序列， 返回的形状是(time_seq, 25*2)
-                #index: 包含了pre_poses的起始帧
+                
+                
                 num_frames = self.num_frames
                 num_pre_frames = self.num_pre_frames
 
@@ -201,12 +201,12 @@ class PoseDataset():
                 index = child.index_list[index]
                 for i in range(index, index+seq_len):
                     img_name=self.img_name_list[i]
-                    img_name=os.path.splitext(os.path.basename(img_name))[0]#img name
-                    pose_at_i=self.loaded_data[img_name]#(25*2)
-                    conf_at_i=self.conf[img_name]#(N*1)
+                    img_name=os.path.splitext(os.path.basename(img_name))[0]
+                    pose_at_i=self.loaded_data[img_name]
+                    conf_at_i=self.conf[img_name]
                     conf.append(conf_at_i)
                     seq_data.append(pose_at_i)
-                seq_data=np.array(seq_data)#(seq_len, 108)
+                seq_data=np.array(seq_data)
 
                 if self.limbscaling and child.name == 'trans':
                     if np.random.random() < 0.3:
@@ -214,8 +214,8 @@ class PoseDataset():
                         local_scales = 0.75 + np.random.random([12])*(1.25-0.75)
                         seq_data = LimbScaling(seq_data, global_scale, local_scales)
 
-                conf=np.array(conf)#(seq_len, N*1)
-                pre_poses = (seq_data[:num_pre_frames, :])  #在这里除以10 normalize 到0, 1之间
+                conf=np.array(conf)
+                pre_poses = (seq_data[:num_pre_frames, :])  
                 pre_conf = conf[:num_pre_frames, :]
                 poses = (seq_data[num_pre_frames:, :])
                 conf = conf[num_pre_frames:, :]
@@ -224,15 +224,15 @@ class PoseDataset():
                 音频特征，不包含pre的
                 '''
                 if self.audio_feat_win_size is None:
-                    audio_feat = self.audio_feat[index+num_pre_frames:index+seq_len, ...]#(num_frames, audio_feat_dim)
+                    audio_feat = self.audio_feat[index+num_pre_frames:index+seq_len, ...]
                     if audio_feat.shape[0] < self.num_frames:
                         audio_feat = np.pad(audio_feat, [[0, self.num_frames-audio_feat.shape[0]], [0, 0]], mode='reflect')
                     
                     assert audio_feat.shape[0] == self.num_frames and audio_feat.shape[1] == self.audio_feat_dim
                 else:
-                    start_sec = (index + num_frames) / 25 #(这么多秒)
-                    start_steps = int(start_sec / 0.01) #mfcc feature中的起始点
-                    mfcc_feature = self.audio_feat[start_steps:start_steps+100, :]#1s，对应100个steps 最后一个time_step很长
+                    start_sec = (index + num_frames) / 25 
+                    start_steps = int(start_sec / 0.01) 
+                    mfcc_feature = self.audio_feat[start_steps:start_steps+100, :]
                     if mfcc_feature.shape[0] != 100:
                         mfcc_feature = np.pad(mfcc_feature, [[0, 100 - mfcc_feature.shape[-1]], [0, 0]], mode='reflect')
                     audio_feat = mfcc_feature
@@ -258,7 +258,7 @@ class PoseDataset():
                 return len(child.index_list)
 
         if self.split_trans_zero:
-            trans_index_list=self.trans_frames[self.trans_frames<(len(self)-self.num_frames-self.num_pre_frames-1)]#多减去一个，因为不想取到最后的那一帧
+            trans_index_list=self.trans_frames[self.trans_frames<(len(self)-self.num_frames-self.num_pre_frames-1)]
             zero_index_list=self.zero_frames[self.zero_frames<(len(self)-self.num_pre_frames-self.num_frames-1)]
 
             if len(trans_index_list) > 0:
@@ -330,7 +330,7 @@ class MultiVidData():
                         data_root=seq_root,
                         speaker=speaker_id[speaker_name],
                         audio_fn=audio_fname,
-                        #TODO: 这些值的指定，不要hard_coded
+                        
                         audio_sr=16000,
                         fps=25,
                         feat_method=feat_method,
@@ -349,7 +349,7 @@ class MultiVidData():
         assert self.complete_data.shape[-1] == (12+21+21)*2
         self.normalize_stats = {}
         if self.normalization:
-            #获取normalization的mean和std
+            
             data_mean, data_std = self._normalization_stats(self.complete_data)
             self.data_mean = data_mean.reshape(1, 1, -1)
             self.data_std = data_std.reshape(1, 1, -1)
@@ -395,24 +395,24 @@ if __name__ == '__main__':
         num_pre_frames=25, num_frames=25, aud_feat_win_size=100, feat_method='mfcc', aud_feat_dim=13
     )
 
-    # test_set_base.get_dataset()
-    # trans_set = test_set_base.trans_dataset
-    # zero_set = test_set_base.zero_dataset
+    
+    
+    
 
-    # trans_loader = data.DataLoader(trans_set, batch_size=64)
-    # zero_loader = data.DataLoader(zero_set, batch_size=64)
+    
+    
 
-    # for step, bat in enumerate(trans_loader):
-    #     print(step)
-    #     print(bat['poses'].shape, bat['poses'].shape)
-    #     print(bat['pre_poses'].shape, bat['pre_poses'].shape)
-    #     print(bat['audio_feat'].shape, bat['audio_feat'].shape)
+    
+    
+    
+    
+    
 
-    # for step, bat in enumerate(zero_loader):
-    #     print(step)
-    #     print(bat['poses'].shape, bat['poses'].shape)
-    #     print(bat['pre_poses'].shape, bat['pre_poses'].shape)
-    #     print(bat['audio_feat'].shape, bat['audio_feat'].shape)
+    
+    
+    
+    
+    
 
     test_set_base.get_dataset()
     all_set = test_set_base.all_dataset

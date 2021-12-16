@@ -28,7 +28,7 @@ class DecoderWrapper(nn.Module):
         self.linear=nn.Linear(hidden_size, output_size)
         self.device=device
         self.one_hot=one_hot
-        #init
+        
         torch.nn.init.uniform_(self.linear.weight, -0.04, 0.04)
     
     def forward(self, inputs, state, target_seq_len):
@@ -105,7 +105,7 @@ class Seq2Seq(nn.Module):
         self.encoder=nn.GRU(input_size=self.input_size, hidden_size=self.encoder_hidden_size,num_layers=1, batch_first=False)
         self.decoder=nn.GRU(input_size=self.output_size, hidden_size=self.decoder_hidden_size, num_layers=1, batch_first=False)
         if not self.stochastic:
-            self.decoder=DecoderWrapper(self.decoder, self.decoder_hidden_size, self.output_size, self.residual, self.one_hot, device)#wrapper
+            self.decoder=DecoderWrapper(self.decoder, self.decoder_hidden_size, self.output_size, self.residual, self.one_hot, device)
             self.loss=nn.MSELoss(reduction='sum')
         else:
             print('using nll_gauss')
@@ -149,7 +149,7 @@ class Seq2Seq_with_noise(nn.Module):
         self.encoder=nn.GRU(input_size=self.input_size, hidden_size=self.encoder_hidden_size,num_layers=1, batch_first=False)
         self.decoder=nn.GRU(input_size=self.input_size, hidden_size=self.decoder_hidden_size, num_layers=1, batch_first=False)
         if not self.stochastic:
-            self.decoder=DecoderWrapper(self.decoder, self.decoder_hidden_size, self.output_size, self.residual, self.one_hot, device)#wrapper
+            self.decoder=DecoderWrapper(self.decoder, self.decoder_hidden_size, self.output_size, self.residual, self.one_hot, device)
             self.loss=nn.MSELoss(reduction='sum')
         else:
             print('using nll_gauss')
@@ -193,7 +193,7 @@ class Seq2Seq_VAE(nn.Module):
         self.encoder=nn.GRU(input_size=self.input_size, hidden_size=self.encoder_hidden_size,num_layers=1, batch_first=False)
         self.decoder=nn.GRU(input_size=self.input_size, hidden_size=self.decoder_hidden_size, num_layers=1, batch_first=False)
         if not self.stochastic:
-            self.decoder=DecoderWrapper(self.decoder, self.decoder_hidden_size, self.output_size, self.residual, self.one_hot, device)#wrapper
+            self.decoder=DecoderWrapper(self.decoder, self.decoder_hidden_size, self.output_size, self.residual, self.one_hot, device)
             self.loss=nn.MSELoss(reduction='sum')
         else:
             print('using nll_gauss')
@@ -270,7 +270,7 @@ class Seq2Seq_CVAE(nn.Module):
         self.encoder=nn.GRU(input_size=self.input_size, hidden_size=self.encoder_hidden_size,num_layers=1, batch_first=False)
         self.decoder=nn.GRU(input_size=self.input_size, hidden_size=self.decoder_hidden_size, num_layers=1, batch_first=False)
         if not self.stochastic:
-            self.decoder=DecoderWrapper(self.decoder, self.decoder_hidden_size, self.output_size, self.residual, self.one_hot, device)#wrapper
+            self.decoder=DecoderWrapper(self.decoder, self.decoder_hidden_size, self.output_size, self.residual, self.one_hot, device)
             self.loss=nn.MSELoss(reduction='sum')
         else:
             print('using nll_gauss')

@@ -28,7 +28,7 @@ class MultiVidData():
         self.df = self.df[self.df['dataset']==self.split]
         self.upper_body_points = [0, 1, 2, 3, 4, 5, 6, 7, 15, 16, 17, 18] + list(np.arange(25, 25+21+21))
 
-        #读取seq pth, 和annotations即可
+        
         self.generate_all_trans_frames_and_load_audio()
 
         self.trans_frames = np.array(self.trans_frames)
@@ -36,7 +36,7 @@ class MultiVidData():
         print('num_trans:', len(self.trans_frames), 'num_zero:', len(self.zero_frames))
     
     def generate_all_trans_frames_and_load_audio(self):
-        #在这里把所有的trans frames找到
+        
         self.trans_frames = []
         self.zero_frames = []
         self.audio_lookup = {}
@@ -44,13 +44,13 @@ class MultiVidData():
         for index in tqdm(range(len(self.df))):
             row = self.df.iloc[index]
             arr = row['pose_fn']
-            poses = np.load(arr)['pose'].reshape(50, -1, 3) #(50, (25+21+21)*3)
+            poses = np.load(arr)['pose'].reshape(50, -1, 3) 
             assert poses.shape[1] == 25+21+21
             upper_body_points = poses[:, self.upper_body_points, :]
-            confs = upper_body_points[..., -1:] #(50, 54, 1)
+            confs = upper_body_points[..., -1:] 
             posepts = upper_body_points[..., 0:2]
             seq_data = posepts.reshape(50, -1)
-            conf = np.concatenate([confs, confs], axis=-1) #(50, 54, 2)
+            conf = np.concatenate([confs, confs], axis=-1) 
             conf = conf.reshape(50, -1)
 
             label = auto_label(seq_data, conf)
@@ -59,7 +59,7 @@ class MultiVidData():
             elif label == 0:
                 self.zero_frames.append(index)
             else:
-                #对应与None的情形
+                
                 pass
 
             audio_pth = (row['audio_fn'])
@@ -78,7 +78,7 @@ class MultiVidData():
         audio_features = []
         item_num=0
         
-        #首先获取一个batch的trans状态的数据
+        
         indexes = random.sample(list(self.trans_frames), k=batch_size)
         for index in indexes:
             row = self.df.iloc[index]
@@ -86,13 +86,13 @@ class MultiVidData():
             start = row['start']
             end = row['end']
             audio_pth = (row['audio_fn'])
-            poses = np.load(arr)['pose'].reshape(50, -1, 3) # (50,...)
+            poses = np.load(arr)['pose'].reshape(50, -1, 3) 
 
             upper_body_points = poses[:, self.upper_body_points, :]
-            confs = upper_body_points[..., -1:] #(50, 54, 1)
+            confs = upper_body_points[..., -1:] 
             posepts = upper_body_points[..., 0:2]
             seq_data = posepts.reshape(50, -1)
-            conf = np.concatenate([confs, confs], axis=-1) #(50, 54, 2)
+            conf = np.concatenate([confs, confs], axis=-1) 
             conf = conf.reshape(50, -1)
 
             mfcc_features = self.audio_lookup[audio_pth]
@@ -111,13 +111,13 @@ class MultiVidData():
         
         his_landmarks=np.array(his_landmarks)
         fut_landmarks=np.array(fut_landmarks)
-        his_confs = np.array(his_confs)#(batch_size, seq_len, N*1)
+        his_confs = np.array(his_confs)
         fut_confs = np.array(fut_confs)
         audio_features = np.array(audio_features)
         assert his_landmarks.shape[-1] == (12+21+21)*2
 
         if self.normalization:
-            #his_landmarks (B, T, 108)
+            
             assert his_landmarks.shape[-1] == self.data_mean.shape[-1] and his_landmarks.shape[-1] == self.data_std.shape[-1]
 
             his_landmarks = (his_landmarks - self.data_mean) / self.data_std
@@ -137,19 +137,19 @@ class MultiVidData():
         item_num=0
         indexes = random.sample(list(self.zero_frames), k=batch_size)
         for index in indexes:
-            #首先获取一个batch的trans状态的数据
+            
             row = self.df.iloc[index]
             arr = (row['pose_fn'])
             start = row['start']
             end = row['end']
             audio_pth = (row['audio_fn'])
-            poses = np.load(arr)['pose'].reshape(50, -1, 3) # (50,...)
+            poses = np.load(arr)['pose'].reshape(50, -1, 3) 
 
             upper_body_points = poses[:, self.upper_body_points, :]
-            confs = upper_body_points[..., -1:] #(50, 54, 1)
+            confs = upper_body_points[..., -1:] 
             posepts = upper_body_points[..., 0:2]
             seq_data = posepts.reshape(50, -1)
-            conf = np.concatenate([confs, confs], axis=-1) #(50, 54, 2)
+            conf = np.concatenate([confs, confs], axis=-1) 
             conf = conf.reshape(50, -1)
 
             mfcc_features = self.audio_lookup[audio_pth]
@@ -168,13 +168,13 @@ class MultiVidData():
         
         his_landmarks=np.array(his_landmarks)
         fut_landmarks=np.array(fut_landmarks)
-        his_confs = np.array(his_confs)#(batch_size, seq_len, N*1)
+        his_confs = np.array(his_confs)
         fut_confs = np.array(fut_confs)
         audio_features = np.array(audio_features)
         assert his_landmarks.shape[-1] == (12+21+21)*2
 
         if self.normalization:
-            #his_landmarks (B, T, 108)
+            
             assert his_landmarks.shape[-1] == self.data_mean.shape[-1] and his_landmarks.shape[-1] == self.data_std.shape[-1]
 
             his_landmarks = (his_landmarks - self.data_mean) / self.data_std
@@ -193,19 +193,19 @@ class MultiVidData():
         audio_features = []
         item_num=0
         
-        #首先获取一个batch的trans状态的数据
+        
         row = self.df.iloc[index]
         arr = (row['pose_fn'])
         start = row['start']
         end = row['end']
         audio_pth = (row['audio_fn'])
-        poses = np.load(arr)['pose'].reshape(50, -1, 3) # (50,...)
+        poses = np.load(arr)['pose'].reshape(50, -1, 3) 
 
         upper_body_points = poses[:, self.upper_body_points, :]
-        confs = upper_body_points[..., -1:] #(50, 54, 1)
+        confs = upper_body_points[..., -1:] 
         posepts = upper_body_points[..., 0:2]
         seq_data = posepts.reshape(50, -1)
-        conf = np.concatenate([confs, confs], axis=-1) #(50, 54, 2)
+        conf = np.concatenate([confs, confs], axis=-1) 
         conf = conf.reshape(50, -1)
 
         mfcc_features = self.audio_lookup[audio_pth]
@@ -224,13 +224,13 @@ class MultiVidData():
         
         his_landmarks=np.array(his_landmarks)
         fut_landmarks=np.array(fut_landmarks)
-        his_confs = np.array(his_confs)#(batch_size, seq_len, N*1)
+        his_confs = np.array(his_confs)
         fut_confs = np.array(fut_confs)
         audio_features = np.array(audio_features)
         assert his_landmarks.shape[-1] == (12+21+21)*2
 
         if self.normalization:
-            #his_landmarks (B, T, 108)
+            
             assert his_landmarks.shape[-1] == self.data_mean.shape[-1] and his_landmarks.shape[-1] == self.data_std.shape[-1]
 
             his_landmarks = (his_landmarks - self.data_mean) / self.data_std

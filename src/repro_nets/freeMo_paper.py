@@ -81,10 +81,10 @@ class Generator(nn.Module):
             )
 
     def forward(self, aud, pre_poses, gt_poses=None, mode='trans'):
-        #B, C, T的数据格式，在内部进行替换
+        
         B, _, T = aud.shape
 
-        #TODO: 完成数据格式的替换
+        
         pre_poses = pre_poses.permute(2, 0, 1)
         if gt_poses is not None:
             gt_poses = gt_poses.permute(2, 0, 1)
@@ -111,7 +111,7 @@ class Generator(nn.Module):
 
             frame_0 = new_style
 
-            pred_poses = self.seq_decoder(hidden, frame_0)#(T, B, C)
+            pred_poses = self.seq_decoder(hidden, frame_0)
             pred_poses = pred_poses.permute(1, 2, 0)
             
             if self.recon_input:
@@ -127,7 +127,7 @@ class Generator(nn.Module):
             else:
                 recon_poses = None
 
-            #zero的时候适用audio_decoding
+            
             if mode == 'zero' and self.aud_decoding:
                 dynamics = self.aud2pose(aud)
 
@@ -160,7 +160,7 @@ class Generator(nn.Module):
 
 class TrainWrapper(TrainWrapperBaseClass):
     '''
-    一个wrapper使其接受data_utils给出的数据，前向运算得到loss，将inference的代码也写在这吧
+    一个wrapper使其接受data_utils给出的数据，前向运算得到loss
     '''
     def __init__(self, args):
         self.args = args
@@ -189,7 +189,7 @@ class TrainWrapper(TrainWrapperBaseClass):
         self.vel_loss = VelocityLoss(velocity_length=self.args.velocity_length).to(self.device)
         self.l2reg_loss = L2RegLoss().to(self.device)
         self.r_loss = AudioLoss().to(self.device)
-        #为了计算kl的权重
+        
         self.global_step = 0
     
     def init_optimizer(self) -> None:
@@ -211,7 +211,7 @@ class TrainWrapper(TrainWrapperBaseClass):
 
         trans_bat, zero_bat = bat[0], bat[1]
 
-        #poses是gt_poses, pre_poses是poses
+        
         trans_aud, trans_gt_poses, trans_pre_poses = trans_bat['aud_feat'].to(self.device).to(torch.float32), trans_bat['poses'].to(self.device).to(torch.float32), trans_bat['pre_poses'].to(torch.float32).to(self.device)
 
         trans_gt_conf = trans_bat['conf'].to(self.device).to(torch.float32)
@@ -256,7 +256,7 @@ class TrainWrapper(TrainWrapperBaseClass):
             gt_conf=zero_gt_conf
             )
 
-        #TODO: trans and zero, whether to balance
+        
         total_loss = trans_loss + zero_loss
         loss_dict = {}
         for key in list(trans_dict.keys()):
@@ -285,7 +285,7 @@ class TrainWrapper(TrainWrapperBaseClass):
         if mode == 'trans':
             recon_loss = self.rec_loss(pred_poses, gt_poses, gt_conf)
             if recon_poses is not None:
-                #TODO: 和原来不同的地方在于，这里没有使用conf
+                
                 reg_loss = self.reg_loss(recon_poses[0], prev_poses) + self.reg_loss(recon_poses[1], gt_poses)
             else:
                 reg_loss = 0
@@ -359,7 +359,6 @@ class TrainWrapper(TrainWrapperBaseClass):
         initial_pose: (B, C, T)
         对aud和txgfile这一栏目生成一个(B, T, C)的序列
         如果是normalization的模型，则要求initial_pose也是经过normalize的
-        #TODO:有没有可以直接在代码中生成对齐文本的工具呢？
         '''
         output = []
 
@@ -378,7 +377,7 @@ class TrainWrapper(TrainWrapperBaseClass):
         txgfile = kwargs['txgfile']
         code_seq = parse_audio(txgfile)
         if self.args.feat_method == 'mel_spec':
-            aud_feat = get_melspec(aud_fn).transpose(1, 0)#(C, T)
+            aud_feat = get_melspec(aud_fn).transpose(1, 0)
         elif self.args.feat_method == 'mfcc':
             aud_feat = get_mfcc(
                 audio_fn=aud_fn,
@@ -405,14 +404,14 @@ class TrainWrapper(TrainWrapperBaseClass):
             with torch.no_grad():
                 code = code_seq[step]
                 if code == 1:
-                    pred_poses = self.generator(aud_feat_step, initial_pose, mode='trans') #(B, C, T)
+                    pred_poses = self.generator(aud_feat_step, initial_pose, mode='trans') 
                 elif code==0:
                     pred_poses = self.generator(aud_feat_step, initial_pose, mode='zero')
                 else: raise ValueError
 
             initial_pose = pred_poses[:, :, -pre_length:]
 
-            output_step = pred_poses.clone().cpu().detach().numpy().transpose(0, 2, 1) #(B, T, C)
+            output_step = pred_poses.clone().cpu().detach().numpy().transpose(0, 2, 1) 
             if self.args.normalization:
                 output_step = denormalize(output_step, data_mean, data_std)
             output.append(output_step)

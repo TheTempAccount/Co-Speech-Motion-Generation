@@ -11,15 +11,15 @@ def load_wav(audio_fn, sr = 16000):
     y, sr = librosa.load(audio_fn, sr = sr, mono=True)    
     return y, sr
 
-def get_mfcc(audio_fn, eps=1e-6, fps=25, sr=16000, n_mfcc=64, win_size=None):#MFCC的取值范围很大
+def get_mfcc(audio_fn, eps=1e-6, fps=25, sr=16000, n_mfcc=64, win_size=None):
     y, sr = load_wav(audio_fn, sr=sr)
 
     if win_size is None:
-        hop_len=int(sr / fps)#步长
+        hop_len=int(sr / fps)
     else:
         hop_len=int(sr/ win_size)
         
-    n_fft=2048 #或者可以指定为sr*0.02这种，即窗口大小为0.02秒, 2048就是0.128秒
+    n_fft=2048 
 
     C = librosa.feature.mfcc(
         y = y,
@@ -35,21 +35,21 @@ def get_mfcc(audio_fn, eps=1e-6, fps=25, sr=16000, n_mfcc=64, win_size=None):#MF
     return C
     
 
-def get_melspec(audio_fn, eps=1e-6, fps = 25, sr=16000, n_mels=64):#取值范围小一点，但是也不是0,1之间的数
+def get_melspec(audio_fn, eps=1e-6, fps = 25, sr=16000, n_mels=64):
     y, sr = load_wav(audio_fn=audio_fn, sr=sr)
     
-    hop_len = int(sr / fps) #16000 / 25 = 160 * 4 = 640
+    hop_len = int(sr / fps) 
     n_fft = 2048
 
     C = librosa.feature.melspectrogram(
         y = y, 
         sr = sr, 
-        n_fft=n_fft, #fft窗口的大小，默认情况下计算梅尔谱特征的窗口大小也是这么多
+        n_fft=n_fft, 
         hop_length=hop_len, 
         n_mels = n_mels, 
         fmin=0, 
         fmax=8000)
-    # print(C.max(), C.min())
+    
 
     mask = (C == 0).astype(np.float)
     C = mask * eps + (1-mask) * C
@@ -58,7 +58,7 @@ def get_melspec(audio_fn, eps=1e-6, fps = 25, sr=16000, n_mels=64):#取值范围
     if C.shape[0] == n_mels:
         C = C.transpose(1, 0)
 
-    return C #(T, n_mels)
+    return C 
 
 if __name__ == '__main__':
     audio_fn = 'sample_audio/jon.wav'

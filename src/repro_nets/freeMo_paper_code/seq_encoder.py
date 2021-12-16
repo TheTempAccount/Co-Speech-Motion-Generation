@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-#由于原始代码中考虑了一个content和style的区分，这里也实现下
+
 class SeqEncoder(nn.Module):
     def __init__(self, 
         pose_dim, 
@@ -31,23 +31,23 @@ class SeqEncoder(nn.Module):
 
 
     def forward(self, inputs):
-        #inputs: (T, B, C)
+        
         assert inputs.shape[-1]==self.pose_dim
         S, B = inputs.shape[0], inputs.shape[1]
-        outputs, state=self.lstm(inputs)#forward embedding, outputs: (1, batch_size, hidden_size)
+        outputs, state=self.lstm(inputs)
         outputs=outputs[-1,:,:]
 
-        # outputs=outputs.squeeze(0)
+        
         assert outputs.shape[0] == B
-        outputs=self.fc(outputs)#(batch_size, embed_size)
+        outputs=self.fc(outputs)
         
         features=outputs
-        # if self.content_dim:
-        #     if self.T_layer_norm:
-        #         content=outputs[:,0:self.content_dim]
-        #         style=self.layer_norm(outputs[:,self.content_dim:])
+        
+        
+        
+        
             
-        return features#
+        return features
 
 if __name__ == "__main__":
     test_model = SeqEncoder(

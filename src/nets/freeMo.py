@@ -39,14 +39,14 @@ class SeqEncoderWrapper(nn.Module):
             self.fc = nn.Linear(hidden_size, embed_size)
     
     def forward(self, x):
-        #x: (B, C, T)
-        x = self.rnn_cell(x, None)#(B, D)
+        
+        x = self.rnn_cell(x, None)
         x = self.fc(x)
         return x
 
 class SeqDecoderWrapper(nn.Module):
     '''
-    LSTM-FC. #: 两种选择，一种按照原来的那种，输入始终是一个固定的，另外一种是迭代式的，这里先实现成迭代式的
+    LSTM-FC. 
     迭代式的decoder似乎会造成输出存在不自然抖动的问题
     '''
     def __init__(self,
@@ -65,24 +65,24 @@ class SeqDecoderWrapper(nn.Module):
             num_layers=num_layers,
             rnn_cell=rnn_cell
         )
-        # self.num_steps = num_steps
-        # self.lstm = nn.LSTM(input_size=512, hidden_size=1024, num_layers=1, batch_first=True)
-        # self.fc = nn.Linear(1024, 108)
+        
+        
+        
     
     def forward(self, x, frame_0):
-        #x:(B, D)
+        
         x = self.decoder(x, frame_0)
         return x
-        #test: x是state, 1, B, D， frame_0 应该是B, 1, X
-        # outputs = []
-        # prev_states = x
-        # dec_input = frame_0
-        # for _ in range(self.num_steps):
-        #     output, prev_states = self.lstm(dec_input, prev_states)
-        #     outputs.append(output.squeeze(1))#(B, 1, D)
-        # outputs = torch.stack(outputs, dim=1)#(B, T, D)
-        # outputs = self.fc(outputs)
-        # return outputs.permute(0, 2, 1)
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
 
 class LatentEncoderWrapper(nn.Module):
     def __init__(self,
@@ -134,24 +134,24 @@ class LatentEncoderWrapper(nn.Module):
         self.var_fc = nn.Linear(fc_size, noise_size)
 
     def forward(self, his_feat, fut_feat):
-        #his_feat: (B, D), fut_feat: (B, D)
-        #如果存在content_dim的话，则将前面的作为content
+        
+        
         his_feat = his_feat[:, self.content_size:]
         fut_feat = fut_feat[:, self.content_size:]
 
         if self.interaction_method == 'concat':
-            #这种是通过fc计算feature vector
+            
             feat_dis = torch.cat([fut_feat, his_feat], dim=1)
             feat_dis = self.pre_fc(feat_dis)
         elif self.interaction_method == 'add':
-            #这种是直接用差来作为feature vector
+            
             feat_dis = fut_feat - his_feat
         else:
             raise ValueError
 
-        #经过一系列的层进行encoding
+        
         x = self.layer_norm_1(feat_dis)
-        #TODO: 这里对concat和add两种方法的话，是否使用不同的latent_fc
+        
         x = self.latent_fc_layers(x)
         mu = self.mu_fc(x)
         var = self.var_fc(x)
@@ -206,7 +206,7 @@ class LatentDecoderWrapper(nn.Module):
         if dec_interaction == 'concat':
             self.recovery_fc = nn.Sequential(
                 nn.Linear(embed_size*2, embed_size),
-                # nn.ReLU()
+                
             )
 
         dec_fc_layers = []
@@ -255,34 +255,34 @@ class LatentDecoderWrapper(nn.Module):
         return nn.Sequential(*middle_layers)
 
     def forward(self, z, embed, mode='trans'):
-        #均是一堆向量
+        
         prev_style = embed[:, self.content_size:]
         prev_content = embed[:, :self.content_size]
 
         if mode == 'trans' or mode == 'zero':
-            #z是his和fut的关系的feature vector
-            #这一步可以理解成对应于mu_fc、var_fc的反向操作
+            
+            
             z = self.map_noise(z)
-            #TODO:下面应该是恢复出feature vector，这里考虑下，是将prev_style考虑在内，还是不考虑，考虑在内的话，就是对不同的prev_style恢复的feature vector不一样，不考虑的话就是认为同一个z，其解码出的表示都是一个，可以应用于所有的prev_style，但是，训练的时候实际上对同一个z，prev_style总是固定的
+            
             concat = torch.cat([z, prev_style], dim=1)
             style_dis = self.interaction_fc(concat)
 
-            #下面是根据恢复的dis和prev_style生成fut_style
+            
             if self.T_layer_norm:
                 style_dis = self.norm_prev(style_dis)
             
             if self.dec_interaction == 'add':
-                #如果是add的话就是加回去
+                
                 style_new = style_dis + prev_style
             elif self.dec_interaction == 'concat':
-                #如果是concat的话需要一个fc
+                
                 style_new = torch.cat([style_dis, prev_style], dim=1)
                 style_new = self.recovery_fc(style_new)
             
             if self.T_layer_norm:
                 style_new = self.norm_post(style_new)
             
-            #根据style_new和concont，计算decoder的输入
+            
             if self.content_size>0:
                 new_code = torch.cat([prev_content, style_new], dim=1)
             else:
@@ -311,7 +311,7 @@ class LatentDecoderWrapper(nn.Module):
             new_code = self.dec_fc_layers(new_code)
 
             h0=self.h_fc(new_code)
-            h0=self.h_agn(h0)#(batch_size, hidden_size)
+            h0=self.h_agn(h0)
             h0=h0.unsqueeze(0)
             
             if self.dec_type == 'lstm':
@@ -322,13 +322,13 @@ class LatentDecoderWrapper(nn.Module):
                 return h0
             else:
                 raise ValueError
-            #加上lstm_layer维度
+            
         else:
             raise ValueError
 
 class AudioTranslatorWrapper(nn.Module):
     '''
-    (B, C_in, T)->(B, C_out, T)。简单的Translator还是用
+    (B, C_in, T)->(B, C_out, T)。
     '''
     def __init__(self,
         C_in,
@@ -418,8 +418,8 @@ class Generator(nn.Module):
         )
 
     def forward(self, aud, pre_poses, gt_poses=None, mode='trans'):
-        # aud: (B, C, T), poses: (B, C, T), mode: trans, zero, recon gt_poses: (B, C, T)
-        # gt对应step_i，pre对应step_i-1
+        
+        
         B, _, T = aud.shape
         if self.training:
             assert gt_poses is not None
@@ -435,27 +435,27 @@ class Generator(nn.Module):
             else:
                 raise ValueError
             hidden, new_style = self.latent_dec(z, his_feat, mode=mode)
-            # if len(new_style.shape) == 2:
-            #     new_style = new_style.unsqueeze(1)#(B, 1, D)
-            # frame_0 = new_style
-            # assert frame_0.shape[0] == B
+            
+            
+            
+            
             frame_0 = pre_poses[:, :, -1:]
             pred_poses = self.seq_dec(hidden, frame_0)
             
             if self.recon_input:
-                #对pose和gt_poses都进行recon
-                #TODO: 考虑要不要把audio decoding也放在这里
+                
+                
                 hidden_his, new_style = self.latent_dec(None, his_feat, mode='recon')
-                # if len(new_style.shape) == 2:
-                #     new_style = new_style.unsqueeze(1)#(B, 1, D)
-                # frame_0_his = new_style
+                
+                
+                
                 frame_0_his = pre_poses[:, :, 0:1]
                 recon_poses_his = self.seq_dec(hidden_his, frame_0_his)
 
                 hidden_fut, new_style = self.latent_dec(None, fut_feat, mode='recon')
-                # if len(new_style.shape) == 2:
-                #     new_style = new_style.unsqueeze(1)#(B, 1, D)
-                # frame_0_fut = new_style
+                
+                
+                
                 frame_0_fut = pre_poses[:, :, -1:]
                 recon_poses_fut = self.seq_dec(hidden_fut, frame_0_fut)
 
@@ -463,7 +463,7 @@ class Generator(nn.Module):
             else:
                 recon_poses = None
 
-            #zero的时候适用audio_decoding
+            
             if mode == 'zero' and self.aud_decoding:
                 dynamics = self.aud_translator(aud)
                 pred_poses = pred_poses + dynamics
@@ -482,9 +482,9 @@ class Generator(nn.Module):
                 z = None
             
             hidden, new_style = self.latent_dec(z, his_feat)
-            # if len(new_style.shape) == 2:
-            #     new_style = new_style.unsqueeze(1)#(B, 1, D)
-            # frame_0 = new_style
+            
+            
+            
             frame_0 = pre_poses[:, :, -1:]
             pred_poses = self.seq_dec(hidden, frame_0)
 
@@ -496,7 +496,7 @@ class Generator(nn.Module):
 
 class TrainWrapper(TrainWrapperBaseClass):
     '''
-    一个wrapper使其接受data_utils给出的数据，前向运算得到loss，将inference的代码也写在这吧
+    一个wrapper使其接受data_utils给出的数据，前向运算得到loss，
     '''
     def __init__(self, args):
         self.args = args
@@ -530,7 +530,7 @@ class TrainWrapper(TrainWrapperBaseClass):
         self.vel_loss = VelocityLoss(velocity_length=self.args.velocity_length).to(self.device)
         self.l2reg_loss = L2RegLoss().to(self.device)
         self.r_loss = AudioLoss().to(self.device)
-        #为了计算kl的权重
+        
         self.global_step = 0
     
     def init_optimizer(self) -> None:
@@ -552,7 +552,7 @@ class TrainWrapper(TrainWrapperBaseClass):
 
         trans_bat, zero_bat = bat[0], bat[1]
 
-        #poses是gt_poses, pre_poses是poses
+        
         trans_aud, trans_gt_poses, trans_pre_poses = trans_bat['aud_feat'].to(self.device).to(torch.float32), trans_bat['poses'].to(self.device).to(torch.float32), trans_bat['pre_poses'].to(torch.float32).to(self.device)
 
         trans_gt_conf = trans_bat['conf'].to(self.device).to(torch.float32)
@@ -597,7 +597,7 @@ class TrainWrapper(TrainWrapperBaseClass):
             gt_conf=zero_gt_conf
             )
 
-        #TODO: trans and zero, whether to balance
+        
         total_loss = trans_loss + zero_loss
         loss_dict = {}
         for key in list(trans_dict.keys()):
@@ -694,7 +694,7 @@ class TrainWrapper(TrainWrapperBaseClass):
         initial_pose: (B, C, T)
         对aud和txgfile这一栏目生成一个(B, T, C)的序列
         如果是normalization的模型，则要求initial_pose也是经过normalize的
-        #TODO:有没有可以直接在代码中生成对齐文本的工具呢？
+        
         '''
         output = []
 
@@ -712,7 +712,7 @@ class TrainWrapper(TrainWrapperBaseClass):
 
         txgfile = kwargs['txgfile']
         code_seq = parse_audio(txgfile)
-        aud_feat = get_melspec(aud_fn).transpose(1, 0)#(C, T)
+        aud_feat = get_melspec(aud_fn).transpose(1, 0)
 
         for step in range(len(code_seq)):
             aud_feat_step = aud_feat[:, step*generate_length: (step+1)*generate_length]
@@ -724,14 +724,14 @@ class TrainWrapper(TrainWrapperBaseClass):
             with torch.no_grad():
                 code = code_seq[step]
                 if code == 1:
-                    pred_poses = self.generator(aud_feat_step, initial_pose, mode='trans') #(B, C, T)
+                    pred_poses = self.generator(aud_feat_step, initial_pose, mode='trans') 
                 elif code==0:
                     pred_poses = self.generator(aud_feat_step, initial_pose, mode='zero')
                 else: raise ValueError
 
             initial_pose = pred_poses[:, :, -pre_length:]
 
-            output_step = pred_poses.clone().cpu().detach().numpy().transpose(0, 2, 1) #(B, T, C)
+            output_step = pred_poses.clone().cpu().detach().numpy().transpose(0, 2, 1) 
             if self.args.normalization:
                 output_step = denormalize(output_step, data_mean, data_std)
             output.append(output_step)

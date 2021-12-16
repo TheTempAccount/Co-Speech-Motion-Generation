@@ -146,9 +146,9 @@ class UnetUp(nn.Module):
         self.conv = ConvNormRelu(in_ch, out_ch)
 
     def forward(self, x1, x2):
-        x1 = torch.repeat_interleave(x1, 2, dim=2) #tf.keras.repeat_elements
-        x1 = x1[:, :, :x2.shape[2]]  # to match dim
-        x = x1 + x2  # it is different to the original UNET, but I stick to speech2gesture implementation
+        x1 = torch.repeat_interleave(x1, 2, dim=2) 
+        x1 = x1[:, :, :x2.shape[2]]  
+        x = x1 + x2  
         x = self.conv(x)
         return x
 
@@ -168,7 +168,7 @@ class AudioEncoder(nn.Module):
             ConvNormRelu(256, 256, '2d', False, padding='VALID')
         )
 
-        # self.make_1d = torch.nn.Upsample((n_frames, 1), mode='bilinear', align_corners=False)
+        
 
         self.down1 = nn.Sequential(
             ConvNormRelu(256, 256, '1d', False),
@@ -186,8 +186,8 @@ class AudioEncoder(nn.Module):
         self.up5 = UnetUp(256, 256)
 
     def forward(self, spectrogram, time_steps=None):
-        spectrogram = spectrogram.unsqueeze(1)  # add channel dim
-        # print(spectrogram.shape)
+        spectrogram = spectrogram.unsqueeze(1)  
+        
         spectrogram = spectrogram.float()
 
         if time_steps is None:
@@ -195,8 +195,8 @@ class AudioEncoder(nn.Module):
 
         out = self.first_net(spectrogram)
 
-        # 原始的tf代码应该是这样的
-        # out = self.make_1d(out)
+        
+        
         out = torch.nn.functional.interpolate(out, size=(time_steps, 1), mode='bilinear')
 
         x1 = out.squeeze(3)
@@ -218,7 +218,6 @@ class AudioEncoder(nn.Module):
 
 class Generator(nn.Module):
     '''
-    通过n_poses的指定可以设置生成结果的fps。模型的结构是确定的
     TODO: mel_spec和MFCC，aud_feat的维度设定成了num_frames，但是原版的模型实现里面并不是这样的
     '''
     def __init__(self, n_poses, pose_dim, n_pre_poses, use_template=False, template_length=0):
@@ -231,7 +230,7 @@ class Generator(nn.Module):
 
         self.gen_length = n_poses
 
-        self.audio_encoder = AudioEncoder(n_poses)#这里的这种写法会导致每一步只能生成固定长度的
+        self.audio_encoder = AudioEncoder(n_poses)
         self.pre_pose_encoder = nn.Sequential(
             nn.Linear(n_pre_poses * pose_dim, 32),
             nn.BatchNorm1d(32),
@@ -255,10 +254,10 @@ class Generator(nn.Module):
             if template is None:
                 template = torch.randn([in_spec.shape[0], self.template_length]).to(in_spec.device)
         
-        #in_spec: (B, T, C). 在audio_encoder中
-        audio_feat_seq = self.audio_encoder(in_spec, time_steps=time_steps)  # output (bs, feat_size, n_frames)
+        
+        audio_feat_seq = self.audio_encoder(in_spec, time_steps=time_steps)  
         pre_poses = pre_poses.reshape(pre_poses.shape[0], -1)
-        pre_pose_feat = self.pre_pose_encoder(pre_poses)  # output (bs, 16)
+        pre_pose_feat = self.pre_pose_encoder(pre_poses)  
         pre_pose_feat = pre_pose_feat.unsqueeze(2).repeat(1, 1, self.gen_length)
 
         if self.use_template:
@@ -269,7 +268,7 @@ class Generator(nn.Module):
 
         out = self.decoder(feat)
         out = self.final_out(out)
-        out = out.transpose(1, 2)  # to (batch, seq, dim)
+        out = out.transpose(1, 2)  
 
         return out
 
@@ -286,8 +285,8 @@ class Discriminator(nn.Module):
         )
 
     def forward(self, x):
-        # x = x[:, 1:] - x[:, :-1]  # 不知为何还在这里做这个，明明已经转化为pose differences了
-        x = x.transpose(1, 2)  # to (batch, dim, seq)
+        
+        x = x.transpose(1, 2)  
 
         out = self.net(x)
         return out
@@ -296,7 +295,7 @@ class TrainWrapper(TrainWrapperBaseClass):
     def __init__(self, args) -> None:
         super().__init__(args)
 
-        #定义模型和loss
+        
         self.generator = Generator(
             n_poses = self.args.generate_length,
             pose_dim = self.args.pose_dim,
@@ -346,7 +345,7 @@ class TrainWrapper(TrainWrapperBaseClass):
         assert (not self.args.infer), "infer mode"
         self.global_step += 1
 
-        #poses是gt_poses, pre_poses是poses
+        
         aud, gt_poses, pre_poses = bat['aud_feat'].to(self.device).to(torch.float32), bat['poses'].to(self.device).to(torch.float32), bat['pre_poses'].to(torch.float32).to(self.device)
 
         gt_conf = bat['conf'].to(self.device).to(torch.float32)
@@ -355,7 +354,7 @@ class TrainWrapper(TrainWrapperBaseClass):
             pose_enc = self.pose_encoder(gt_poses)
             mu = self.mu_fc(pose_enc)
             var = self.var_fc(pose_enc)
-            template = self.__reparam(mu, var)#(B, D)
+            template = self.__reparam(mu, var)
             kld_loss = self.KLLoss(mu, var)
         else:
             template = None
@@ -369,12 +368,12 @@ class TrainWrapper(TrainWrapperBaseClass):
 
         if self.args.use_template:
             pred_poses = self.generator(
-                in_spec = aud,#(B, C, T)->(B, T, C)
+                in_spec = aud,
                 pre_poses = pre_poses,
                 template = template
             )
 
-        #训练D
+        
         D_loss, D_loss_dict = self.get_loss(
             pred_poses = pred_poses.detach(),
             gt_poses = gt_poses,
@@ -385,7 +384,7 @@ class TrainWrapper(TrainWrapperBaseClass):
         D_loss.backward()
         self.discriminator_optimizer.step()
         
-        #训练G
+        
         G_loss, G_loss_dict = self.get_loss(
             pred_poses = pred_poses,
             gt_poses = gt_poses,
@@ -461,29 +460,29 @@ class TrainWrapper(TrainWrapperBaseClass):
         pre_length = self.args.pre_pose_length
         generate_length = self.args.generate_length
         assert pre_length == initial_pose.shape[-1]
-        pre_poses = initial_pose.permute(0, 2, 1).to(self.device).to(torch.float32)#(B, T, C)
+        pre_poses = initial_pose.permute(0, 2, 1).to(self.device).to(torch.float32)
         B=pre_poses.shape[0]
         
 
-        #TODO: 暂时这里的T就是num-frames，注意原版的并不是
-        aud_feat = get_melspec(aud_fn).transpose(1, 0)#(C, T)
-        num_poses_to_generate = aud_feat.shape[-1]#(T)
-        if False: #这里是trimodal的做法
+        
+        aud_feat = get_melspec(aud_fn).transpose(1, 0)
+        num_poses_to_generate = aud_feat.shape[-1]
+        if False: 
             num_steps = math.ceil(num_poses_to_generate / generate_length) + 1
-            generate_stride = generate_length - pre_length#每步生成的时候，相邻两步取特征的间隔
+            generate_stride = generate_length - pre_length
 
             for i in range(num_steps):
                 step_start = i*generate_stride
-                aud_feat_step = aud_feat[:, step_start:step_start+generate_length]#(C, T), T=generate_length
+                aud_feat_step = aud_feat[:, step_start:step_start+generate_length]
                 if aud_feat_step.shape[-1] < generate_length:
                     aud_feat_step = np.pad(aud_feat_step, [[0, 0], [0, generate_length-aud_feat_step.shape[-1]]], mode='constant')
                 aud_feat_step = aud_feat_step[np.newaxis, ...].repeat(B, axis=0)
                 aud_feat_step = torch.tensor(aud_feat_step, dtype = torch.float32).to(self.device)
 
                 with torch.no_grad():
-                    aud_feat_step = aud_feat_step.permute(0, 2, 1)#(B, T,C)
-                    pred_poses = self.generator(aud_feat_step, pre_poses)#(B, T, C)
-                    pre_poses = pred_poses.detach().clone()[:, -pre_length:, :]#(B, pre_length, C)
+                    aud_feat_step = aud_feat_step.permute(0, 2, 1)
+                    pred_poses = self.generator(aud_feat_step, pre_poses)
+                    pre_poses = pred_poses.detach().clone()[:, -pre_length:, :]
                 pred_poses = pred_poses.cpu().numpy()
 
                 if len(output)>0:
@@ -503,8 +502,8 @@ class TrainWrapper(TrainWrapperBaseClass):
             aud_feat = torch.tensor(aud_feat, dtype = torch.float32).to(self.device)
 
             with torch.no_grad():
-                aud_feat = aud_feat.permute(0, 2, 1)#(B, T,C)
-                pred_poses = self.generator(aud_feat, pre_poses, time_steps = num_poses_to_generate)#(B, T, C)
+                aud_feat = aud_feat.permute(0, 2, 1)
+                pred_poses = self.generator(aud_feat, pre_poses, time_steps = num_poses_to_generate)
                 pred_poses = pred_poses.cpu().numpy()
             output = pred_poses
         if self.args.normalization:
@@ -515,18 +514,18 @@ class TrainWrapper(TrainWrapperBaseClass):
 
 
 if __name__ == '__main__':
-    # for model debugging
-    # pose_dim = 16
-    # generator = Generator(64, pose_dim, 4)#每次生成64帧
-    # spec = torch.randn((4, 128, 64))#（B, T, C），64是mel_bins
-    # pre_poses = torch.randn((4, 4, pose_dim))
-    # generated = generator(spec, pre_poses)
-    # print('spectrogram', spec.shape)
-    # print('output', generated.shape)
+    
+    
+    
+    
+    
+    
+    
+    
 
-    # discriminator = Discriminator(pose_dim)
-    # out = discriminator(generated)
-    # print('discrimination output', out.shape)
+    
+    
+    
 
     from trainer.options import parse_args
     parser = parse_args()
@@ -534,20 +533,20 @@ if __name__ == '__main__':
 
     generator = TrainWrapper(args)
 
-    # dummy_bat = {
-    #     'aud_feat': torch.randn(64, 64, 64),
-    #     'poses': torch.randn(64, 108, 64),
-    #     'pre_poses': torch.randn(64, 108, 4),
-    #     'conf': torch.randn(64, 108, 64)
-    # }
+    
+    
+    
+    
+    
+    
 
-    # for _ in range(10):
-    #     _, loss_dict = generator(dummy_bat)
-    #     for k in list(loss_dict.keys()):
-    #         print(k, loss_dict[k])
+    
+    
+    
+    
 
-    # print(generator.state_dict().keys())
-    # print(type(generator.parameters()))
+    
+    
 
     aud_fn = '../sample_audio/jon.wav'
     initial_pose = torch.randn(64, 108, 4)

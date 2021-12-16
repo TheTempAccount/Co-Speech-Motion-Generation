@@ -65,7 +65,7 @@ def init_dataloader(data_root, speakers, args):
 
 
 def get_audio(data_root, speaker):
-    #暂时就针对一个speaker
+    
     audio_files = sorted(glob(os.path.join(data_root, "test_audios", speaker, "*.wav")))
     text_files = sorted(glob(os.path.join(data_root, "test_audios", speaker, "res", speaker, "*.TextGrid")))
 
@@ -112,7 +112,7 @@ def main():
     print('init dataloader...')
     infer_set, infer_loader, norm_stats = init_dataloader(args.data_root, args.speakers, args)
     for speaker in args.speakers:
-        #begin inference
+        
         infer_for_one_speaker(args.data_root, speaker, generator, args.exp_name, infer_loader, infer_set, device, norm_stats)
 
 if __name__ == '__main__':

@@ -14,10 +14,10 @@ class Discriminator(nn.Module):
         self.gru=nn.GRU(self.input_size, hidden_size=self.hidden_size, num_layers=self.num_layers)
         self.dense1=nn.Linear(self.hidden_size, 1)
 
-    def forward(self, seq, state=None):#action, state
+    def forward(self, seq, state=None):
         p,hidden=self.gru(seq, state)
-        p = p[-1,...].squeeze(0)#(batch_size, hidden_size)
-        prob=torch.sigmoid(self.dense1(p))#(batch_size, 1)
+        p = p[-1,...].squeeze(0)
+        prob=torch.sigmoid(self.dense1(p))
         return prob
     
     def init_hidden(self):

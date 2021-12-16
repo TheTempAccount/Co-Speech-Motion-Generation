@@ -28,7 +28,7 @@ class Generator(nn.Module):
         self.z_size = z_size
         self.hidden_size = hidden_size
         
-        in_size = embed_dim + pose_dim + z_size#audio的feat、pose的feat和style vector
+        in_size = embed_dim + pose_dim + z_size
 
         self.gru = AudioPoseEncoderRNN(
             C_in=in_size,
@@ -50,8 +50,8 @@ class Generator(nn.Module):
         pre_seq: (B, C, T)
         in_audio: (B, C, T)
         '''
-        audio_feat = self.audio_encoder(in_audio)#
-        in_data = torch.cat((pre_seq, audio_feat), dim=1)#
+        audio_feat = self.audio_encoder(in_audio)
+        in_data = torch.cat((pre_seq, audio_feat), dim=1)
 
         z_context = torch.randn(in_audio.shape[0], self.z_size, device = in_audio.device)
         repeated_z = z_context.unsqueeze(-1)
@@ -60,7 +60,7 @@ class Generator(nn.Module):
         in_data = in_data.to(torch.float32)
 
         output = self.gru(in_data, None)
-        output = output[:, :self.hidden_size, :] + output[:, self.hidden_size:, :]#这里处理bidirectional的方式是相加，可能不是最好的，可以尝试concat
+        output = output[:, :self.hidden_size, :] + output[:, self.hidden_size:, :]
         output = output.permute(0, 2, 1)
         output = self.out(output)
         output = output.permute(0, 2, 1)
@@ -96,7 +96,7 @@ class ConvDiscriminator(nn.Module):
         self.out = nn.Linear(hidden_size*2, 1)
 
     def forward(self, x):
-        #poses: (B, C, T)
+        
         x = x.to(torch.float32)
 
         x = self.pre_conv(x)

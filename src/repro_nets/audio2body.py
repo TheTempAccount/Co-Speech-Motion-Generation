@@ -19,9 +19,9 @@ class Generator(nn.Module):
     ):
         super(Generator, self).__init__()
 
-        # TODO: 原文中有一个可训练初始化的选项
+        
 
-        # Declare the model
+        
         self.cell = AudioPoseEncoderRNN(
             C_in=in_dim,
             hidden_size=hidden_dim,
@@ -34,7 +34,7 @@ class Generator(nn.Module):
         self.initialize()
 
     def initialize(self):
-        # Initialize LSTM Weights and Biases
+        
         for layer in self.cell.cell._all_weights:
             for param_name in layer:
                 if 'weight' in param_name:
@@ -44,16 +44,16 @@ class Generator(nn.Module):
                     bias = getattr(self.cell.cell, param_name)
                     init.uniform_(bias.data, 0.25, 0.5)
 
-        # Initialize FC
+        
         init.xavier_normal_(self.fc.weight.data)
         init.constant_(self.fc.bias.data, 0)
 
     def forward(self, x):
-        # perform the Forward pass of the model
-        #inputs:(B, C, T)
+        
+        
         x = self.cell(x)
         x = x.permute(0, 2, 1)
-        #原文中flatten before FC，实际上和这里是等效的，fc的权重矩阵是hidden_size x pose_dim。原文中的写法在inference的时候只能用batch size为1
+        
         x = self.dropout(x)
         x = self.fc(x)
         x = x.permute(0, 2, 1)

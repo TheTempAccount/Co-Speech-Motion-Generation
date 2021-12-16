@@ -21,27 +21,27 @@ class SeqDecoder(nn.Module):
         self.hidden_size=hidden_size
         self.num_steps=num_steps
         self.device=device
-        self.lstm=nn.LSTM(input_size=self.embed_size // 2, hidden_size=self.hidden_size, num_layers=1)#input是style embedding
+        self.lstm=nn.LSTM(input_size=self.embed_size // 2, hidden_size=self.hidden_size, num_layers=1)
         self.fc=nn.Linear(self.hidden_size, pose_dim)
 
     def forward(self, prev_states, dec_input):
-        #inputs: (seq_len, batch_size, num_keypoints*2)
-        #这里的input作为输入，prev_states是初始化状态
+        
+        
         assert dec_input.shape[-1]==self.embed_size // 2
         assert len(prev_states)==2
 
-        #要求dec_input的形状是(1, batch_size, embed_size//2)
+        
         dec_input=dec_input.unsqueeze(0)
         outputs=[]
         for _ in range(self.num_steps):
-            output, prev_states=self.lstm(dec_input, prev_states)#forward embedding, outputs: (1, batch_size, hidden_size)
+            output, prev_states=self.lstm(dec_input, prev_states)
             outputs.append(output.squeeze(0))
-        outputs=torch.stack(outputs, dim=0)#(num_steps, batch_size, hidden_size)
-        outputs=self.fc(outputs)#(num_steps, batch_size, num_keypoints*2)
-        #TODO:
-        #
-        # outputs = nn.functional.sigmoid(outputs)
-        # outputs = torch.tanh(outputs)
+        outputs=torch.stack(outputs, dim=0)
+        outputs=self.fc(outputs)
+        
+        
+        
+        
         return outputs, prev_states
 
 if __name__ == "__main__":

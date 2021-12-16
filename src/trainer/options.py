@@ -29,7 +29,7 @@ def parse_args():
     parser.add_argument('--max_gradient_norm', default=5, type=float)
     parser.add_argument('--seed', default=1, type=int)
 
-    #用于freeMo的参数
+    
     parser.add_argument('--embed_dim', default=512, type=int)
     parser.add_argument('--content_dim', default=256, type=int)
     parser.add_argument('--noise_dim', default=256, type=int)
@@ -63,18 +63,18 @@ def parse_args():
     parser.add_argument('--rnn_cell', default='gru', type=str)
     parser.add_argument('--bidirectional', action='store_true')
     
-    #for speech2gesture and template-vae
+    
     parser.add_argument('--use_template', action='store_true')
     parser.add_argument('--template_length', default=0, type=int)
 
-    #for inference
+    
     parser.add_argument('--infer', action='store_true')
     parser.add_argument('--model_path', type=str)
     
-    #兼容之前的代码需要的设置
+    
     parser.add_argument('--aud_feat_win_size', default=None, type=int)
     parser.add_argument('--feat_method', default='mel_spec', type=str)
     parser.add_argument('--aud_feat_dim', default=64, type=int)
     
-    # args = parser.parse_args()
+    
     return parser

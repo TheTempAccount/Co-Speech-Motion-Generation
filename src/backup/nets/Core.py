@@ -47,7 +47,7 @@ class Core(nn.Module):
             results['his_content']=his_encoding['content']
             results['his_style']=his_encoding['style']
         
-        # if self.training:
+        
         if 'fut_landmarks' in list(input.keys()):
             fut_landmarks=input['fut_landmarks']
             fut_encoding=self.seq_encoder(fut_landmarks)

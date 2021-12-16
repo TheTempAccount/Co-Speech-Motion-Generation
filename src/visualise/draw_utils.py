@@ -75,42 +75,42 @@ def draw_openpose_npy(resize_h, resize_w, crop_h, crop_w, original_h,
     Returns:
         (list of HxWxC numpy array): Drawn label map.
     """
-    # Whether to draw only the basic keypoints.
+    
     basic_points_only = False
-    # Whether to remove the face labels to avoid overfitting.
+    
 
-    # Whether to randomly drop some keypoints to avoid overfitting.
+    
     random_drop_prob = 0
 
     h, w, nc = crop_h, crop_w, 3
 
-    # Get the list of edges to draw.
+    
     edge_lists = define_edge_lists(basic_points_only)
 
     outputs = []
     for keypoint_npy in tqdm(keypoints_npy, ncols=50):
         person_keypoints = np.asarray(keypoint_npy).reshape(-1, 135, 3)[0]
-        # Separate out the keypoint array to different parts.
+        
         pose_pts = person_keypoints[:25]
         face_pts = person_keypoints[-68:]
         hand_pts_l = person_keypoints[(25): (25 + 21)]
         hand_pts_r = person_keypoints[25+21:25+21+21]
         all_pts = [pose_pts, face_pts, hand_pts_l, hand_pts_r]
-        # Remove the keypoints with low confidence.
+        
         all_pts = [extract_valid_keypoints(pts, edge_lists)
                    for pts in all_pts]
 
-        # Connect the keypoints to form the label map.
+        
         pose_img = connect_pose_keypoints(all_pts, edge_lists,
                                           (h, w, nc),
                                           basic_points_only,
                                           remove_face_labels,
                                           random_drop_prob)
-#         pose_img = np.zeros([h, w, nc])
-#         pose_img = renderpose25(pose_pts.reshape(-1), pose_img)
-#         pose_img = renderhand(hand_pts_l.reshape(-1), pose_img)
-#         pose_img = renderhand(hand_pts_r.reshape(-1), pose_img)
-#         pose_img = renderface(face_pts.reshape(-1), pose_img)
+
+
+
+
+
         pose_img = pose_img.astype(np.uint8)
         outputs.append(pose_img)
     return outputs
@@ -133,16 +133,16 @@ def extract_valid_keypoints(pts, edge_lists):
     thre = 0.1 if p == 68 else 0.01
     output = np.zeros((p, 2))
 
-    if p == 68:  # ai_emoji
+    if p == 68:  
         for edge_list in face_list:
             for edge in edge_list:
                 if (pts[edge, 2] > thre).all():
                     output[edge, :] = pts[edge, :2]
-    elif p == 21:  # hand
+    elif p == 21:  
         for edge in hand_edge_list:
             if (pts[edge, 2] > thre).all():
                 output[edge, :] = pts[edge, :2]
-    else:  # pose
+    else:  
         valid = (pts[:, 2] > thre)
         output[valid, :] = pts[valid, :2]
 
@@ -216,23 +216,23 @@ def connect_pose_keypoints(pts, edge_lists, size, basic_points_only,
     pose_pts, face_pts, hand_pts_l, hand_pts_r = pts
     h, w, c = size
     body_edges = np.ones((h, w, c), np.uint8)
-    # If using one-hot, different parts of the body will be drawn to
-    # different channels.
+    
+    
     use_one_hot = False
     c = 3
 
     pose_edge_list, pose_color_list, hand_edge_list, hand_color_list, \
         face_list = edge_lists
 
-    # Draw pose edges.
+    
     h = int(pose_pts[:, 1].max() - pose_pts[:, 1].min())
-    bw = max(1, h // 150)  # Stroke width.
+    bw = max(1, h // 150)  
     body_edges = draw_edges(body_edges, pose_pts, [pose_edge_list], bw,
                             use_one_hot, random_drop_prob,
                             colors=pose_color_list, draw_end_points=True)
 
     if not basic_points_only:
-        # Draw hand edges.
+        
         bw = max(2, h // 450)
         for i, hand_pts in enumerate([hand_pts_l, hand_pts_r]):
             if use_one_hot:
@@ -245,7 +245,7 @@ def connect_pose_keypoints(pts, edge_lists, size, basic_points_only,
                 body_edges = draw_edges(body_edges, hand_pts, [hand_edge_list],
                                         bw, False, random_drop_prob,
                                         colors=hand_color_list)
-        # Draw face edges.
+        
         if not remove_face_labels:
             if use_one_hot:
                 k = 26
@@ -284,11 +284,11 @@ def draw_edges(canvas, keypoints, edges_list, bw, use_one_hot,
                 if random.random() > random_drop_prob:
                     sub_edge = edge[j:j + edge_len]
                     x, y = keypoints[sub_edge, 0], keypoints[sub_edge, 1]
-                    if 0 not in x:  # Get rid of invalid keypoints.
+                    if 0 not in x:  
                         curve_x, curve_y = interp_points(x, y)
                         if use_one_hot:
-                            # If using one-hot, draw to different channels of
-                            # the canvas.
+                            
+                            
                             draw_edge(canvas[:, :, k], curve_x, curve_y,
                                       bw=bw, color=255,
                                       draw_end_points=draw_end_points)
@@ -309,39 +309,39 @@ def define_edge_lists(basic_points_only):
     Args:
         basic_points_only (bool): Whether to use only the basic keypoints.
     """
-    # Pose edges and corresponding colors.
+    
     pose_edge_list = [
-        [17, 15], [15, 0], [0, 16], [16, 18],  # head
-        [0, 1],                        # body
-        [1, 2], [2, 3], [3, 4],                # right arm
-        [1, 5], [5, 6], [6, 7],                # left arm
-        # [8, 9], [9, 10], [10, 11],             # right leg
-        # [8, 12], [12, 13], [13, 14]            # left leg
+        [17, 15], [15, 0], [0, 16], [16, 18],  
+        [0, 1],                        
+        [1, 2], [2, 3], [3, 4],                
+        [1, 5], [5, 6], [6, 7],                
+        
+        
     ]
     pose_color_list = [
         [153, 0, 153], [153, 0, 102], [102, 0, 153], [51, 0, 153],
         [153, 0, 51],
         [153, 51, 0], [153, 102, 0], [153, 153, 0],
         [102, 153, 0], [51, 153, 0], [0, 153, 0],
-        # [0, 153, 0], [0, 153, 0], [0, 153, 0], [0, 153, 0],
-        # [0, 153, 0],
-        # [0, 153, 0], [0, 153, 0], [0, 153, 0],
-        # [0, 153, 0], [0, 153, 0], [0, 153, 0],
-        # [0, 153, 51], [0, 153, 102], [0, 153, 153],
-        # [0, 102, 153], [0, 51, 153], [0, 0, 153],
+        
+        
+        
+        
+        
+        
     ]
 
     if not basic_points_only:
         pose_edge_list += [
-            # [11, 24], [11, 22], [22, 23],  # right foot
-            # [14, 21], [14, 19], [19, 20]   # left foot
+            
+            
         ]
         pose_color_list += [
-            # [0, 153, 153], [0, 153, 153], [0, 153, 153],
-            # [0, 0, 153], [0, 0, 153], [0, 0, 153]
+            
+            
         ]
 
-    # Hand edges and corresponding colors.
+    
     hand_edge_list = [
         [0, 1, 2, 3, 4],
         [0, 5, 6, 7, 8],
@@ -353,15 +353,15 @@ def define_edge_lists(basic_points_only):
         [204, 0, 0], [163, 204, 0], [0, 204, 82], [0, 82, 204], [163, 0, 204]
     ]
 
-    # Face edges.
+    
     face_list = [
-        # [range(0, 17)],   # face contour
-        # [range(17, 22)],  # left eyebrow
-        # [range(22, 27)],  # right eyebrow
-        # [[28, 31], range(31, 36), [35, 28]],   # nose
-        # [[36, 37, 38, 39], [39, 40, 41, 36]],  # left eye
-        # [[42, 43, 44, 45], [45, 46, 47, 42]],  # right eye
-        # [range(48, 55), [54, 55, 56, 57, 58, 59, 48]],  # mouth
+        
+        
+        
+        
+        
+        
+        
     ]
 
     return pose_edge_list, pose_color_list, hand_edge_list, hand_color_list, \
@@ -381,14 +381,14 @@ def draw_edge(im, x, y, bw=1, color=(255, 255, 255), draw_end_points=False):
     """
     if x is not None and x.size:
         h, w = im.shape[0], im.shape[1]
-        # Draw edge.
+        
         for i in range(-bw, bw):
             for j in range(-bw, bw):
                 yy = np.maximum(0, np.minimum(h - 1, y + i))
                 xx = np.maximum(0, np.minimum(w - 1, x + j))
                 set_color(im, yy, xx, color)
 
-        # Draw endpoints.
+        
         if draw_end_points:
             for i in range(-bw * 2, bw * 2):
                 for j in range(-bw * 2, bw * 2):

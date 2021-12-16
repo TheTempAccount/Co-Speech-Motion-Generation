@@ -10,7 +10,7 @@ class SCSEAttention(nn.Module):
         type='1d'
     ):
         super().__init__()
-        #channel wise, 1x1->conv relu conv -> sigmoid
+        
         if type == '1d':
             self.cSE = nn.Sequential(
                 nn.AdaptiveAvgPool1d(1),
@@ -19,7 +19,7 @@ class SCSEAttention(nn.Module):
                 nn.Conv1d(C_in // reduction, C_in, 1, 1),
                 nn.Sigmoid(),
             )
-            #spatial wise
+            
             self.sSE = nn.Sequential(
                 nn.Conv1d(C_in, 1, 1, 1),
                 nn.Sigmoid()
@@ -32,7 +32,7 @@ class SCSEAttention(nn.Module):
                 nn.Conv2d(C_in // reduction, C_in, 1, 1),
                 nn.Sigmoid(),
             )
-            #spatial wise
+            
             self.sSE = nn.Sequential(
                 nn.Conv2d(C_in, 1, 1, 1),
                 nn.Sigmoid()

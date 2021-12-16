@@ -27,7 +27,7 @@ class LatentDecoder(nn.Module):
         self.latent_fc_layers = latent_fc_layers
         self.T_layer_norm = T_layer_norm
 
-        #首先将noise映射到style_size上, 原文中并未使用activation
+        
         self.map_noise=nn.Sequential(
             nn.Linear(self.noise_size, self.style_size),
             nn.LayerNorm(self.style_size)
@@ -39,7 +39,7 @@ class LatentDecoder(nn.Module):
             self.style_norm_prev=nn.LayerNorm(self.style_size)
             self.style_norm_post=nn.LayerNorm(self.style_size)
 
-        #下面是得到了新的style_code之后，将其与content code concat之后的处理
+        
         dec_fc_layers=[]
         for layer_i in range(num_dec_fc_layers):
             dec_fc_layers.append(
@@ -51,10 +51,10 @@ class LatentDecoder(nn.Module):
         
         self.dec_fc_layers=nn.Sequential(*dec_fc_layers)
 
-        #最后得到seq_decoder的hidden_state, 因为是LSTM，所以有一个h和一个c
+        
         self.h_fc=nn.Linear(self.embed_size, self.dec_hidden_size)
-        self.h_agn=nn.Tanh()#这里有一个tanh激活
-        self.c_hc=nn.Linear(self.embed_size, self.dec_hidden_size)#而这里没有
+        self.h_agn=nn.Tanh()
+        self.c_hc=nn.Linear(self.embed_size, self.dec_hidden_size)
 
     def concat_fn(self):
         
@@ -94,7 +94,7 @@ class LatentDecoder(nn.Module):
         '''
         if data_type == 'trans':
             noise=self.map_noise(latent_input)
-            #可以考虑在这里将noise设置为zero_vector
+            
             concat=torch.cat([noise, prev_style], dim=1)
             assert concat.shape[-1]==self.style_size*2
 
@@ -107,35 +107,35 @@ class LatentDecoder(nn.Module):
             if self.T_layer_norm>0:
                 new_style=self.style_norm_post(new_style)
             
-            # result={}
-            # result['new_style']=new_style.clone()
+            
+            
 
             new_code=torch.cat([prev_content, new_style], dim=1)
             new_code=self.dec_fc_layers(new_code)
 
             h0=self.h_fc(new_code)
-            h0=self.h_agn(h0)#(batch_size, hidden_size)
+            h0=self.h_agn(h0)
 
             c0=self.c_hc(new_code)
 
-            h0=h0.unsqueeze(0)#加上lstm_layer维度
+            h0=h0.unsqueeze(0)
             c0=c0.unsqueeze(0)
 
-            # result['dec_embedding']=(h0, c0)
+            
             return (h0, c0), new_style
         elif data_type=='recons':
-            #data_type == zero, 直接使用input进行prediction
+            
             result={}
             result['new_style']=prev_style.clone()
-            new_code=torch.cat([prev_content, prev_style], dim=1)#实际上prev_style已经在之前norm过了
+            new_code=torch.cat([prev_content, prev_style], dim=1)
             new_code=self.dec_fc_layers(new_code)
 
             h0=self.h_fc(new_code)
-            h0=self.h_agn(h0)#(batch_size, hidden_size)
+            h0=self.h_agn(h0)
 
             c0=self.c_hc(new_code)
 
-            h0=h0.unsqueeze(0)#加上lstm_layer维度
+            h0=h0.unsqueeze(0)
             c0=c0.unsqueeze(0)
 
             return (h0, c0), prev_style

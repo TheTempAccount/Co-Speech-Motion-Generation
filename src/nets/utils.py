@@ -8,18 +8,18 @@ def get_parameter_size(model):
     return total_num, trainable_num
 
 def denormalize(kps, data_mean, data_std):
-    #kps: (B, T, C)
+    
     data_std = data_std.reshape(1, 1, -1)
     data_mean = data_mean.reshape(1, 1, -1)
     return (kps * data_std) + data_mean
 
 def parse_audio(textgrid_file):
-    #TODO: 暂时用这种简单的逻辑进行实验
+    
     words=['but', 'as', 'to', 'that', 'with', 'of', 'the', 'and', 'or', 'not', 'which', 'what', 'this', 'for', 'because', 'if', 'so', 'just', 'about', 'like', 'by', 'how', 'from', 'whats', 'now', 'very', 'that', 'also', 'actually', 'who', 'then', 'well', 'where', 'even', 'today', 'between', 'than', 'when']
     txt=tg.TextGrid.fromFile(textgrid_file)
     
     total_time=int(np.ceil(txt.maxTime))
-    code_seq=np.zeros(total_time)#初始全是0
+    code_seq=np.zeros(total_time)
     
     word_level=txt[0]
     

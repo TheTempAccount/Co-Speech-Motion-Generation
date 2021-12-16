@@ -20,10 +20,10 @@ class LatentEncoder(nn.Module):
         self.embed_size=embed_size
         self.noise_size=noise_size
         self.device=device
-        #TODO: 原文这里虽然是style作为input，但是fc还是上升到了embed_size
+        
         self.style_size=self.embed_size-content_dim
 
-        self.layer_norm_1=nn.LayerNorm(self.style_size)#首先对style之差进行layer norm
+        self.layer_norm_1=nn.LayerNorm(self.style_size)
 
         latent_fc_layers=[]
         latent_fc_layers.append(
@@ -47,7 +47,7 @@ class LatentEncoder(nn.Module):
     
     def forward(self, his_style, fut_style):
         assert his_style.shape[-1]==self.style_size
-        outputs=self.layer_norm_1(fut_style-his_style)#(batch_size, style_size)
+        outputs=self.layer_norm_1(fut_style-his_style)
         outputs=self.latent_fc_layers(outputs)
         mu=self.mu_fc(outputs)
         log_var=self.var_fc(outputs)
