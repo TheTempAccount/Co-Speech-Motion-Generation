@@ -23,7 +23,7 @@ The repo for our work "Free-form Body Motion Generation from Speech" (paper comm
     |   |--trainer //args and trainer
 
 - [x] code 
-- [] data 
+- [ ] data 
 
 ### Inference
 
