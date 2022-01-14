@@ -14,7 +14,8 @@ import time
 import shutil
 
 from trainer.options import parse_args
-from nets import freeMo_Generator, S2G_Generator, A2B_Generator, TriCon_Generator
+from nets import *
+from repro_nets import *
 from data_utils import csv_data, torch_data
 
 class Trainer():
@@ -27,7 +28,6 @@ class Trainer():
         self.setup_seed(self.args.seed)
         self.set_train_dir()
 
-        
         assert self.args.shell_cmd is not None, "save the shell cmd"
         shutil.copy(self.args.shell_cmd, self.train_dir)
 
@@ -64,7 +64,24 @@ class Trainer():
             self.generator = freeMo_Generator(
                 self.args
             )
-            self.discriminator = None
+        elif self.args.model_name == 'freeMo_old':
+            self.generator = freeMo_Generator_old(
+                self.args
+            )
+        elif self.args.model_name == 'freeMo_Graph':
+            self.generator = freeMo_Graph_Generator(
+                self.args
+            )
+
+        elif self.args.model_name == 'freeMo_Graph_v2':
+            self.generator = freeMo_Graph_Generator_v2(
+                self.args
+            )
+        
+        elif self.args.model_name == 'freeMo_paper':
+            self.generator = paper_Generator(
+                self.args
+            )
 
         elif self.args.model_name == 's2g':
             raise NotImplementedError
@@ -80,7 +97,7 @@ class Trainer():
             raise ValueError
 
     def init_dataloader(self):
-        if self.args.model_name == 'freeMo':
+        if 'freeMo' in self.args.model_name:
             if self.args.data_root.endswith('.csv'):
                 raise NotImplementedError
             else:
@@ -112,14 +129,12 @@ class Trainer():
             self.trans_loader = data.DataLoader(self.trans_set, batch_size=self.args.batch_size, shuffle=True, num_workers=self.args.num_workers, drop_last=True) 
             self.zero_loader = data.DataLoader(self.zero_set, batch_size=self.args.batch_size, shuffle=True, num_workers=self.args.num_workers, drop_last=True)
             
-            
-            
-
         else:
             raise NotImplementedError
 
     def init_optimizer(self):
-        pass #deprecated
+        pass
+        # self.generator.init_optimizer()
         # self.generator_optimizer = optim.Adam(
         #     self.generator.parameters(),
         #     lr = self.args.generator_learning_rate,
@@ -141,7 +156,7 @@ class Trainer():
         state_dict = {
             'generator': self.generator.state_dict(),
             'epoch': epoch,
-            'global_steps': self.global_steps,
+            'global_steps': self.global_steps
         }
         save_name = os.path.join(self.train_dir, 'ckpt-%d.pth'%(epoch))
         torch.save(state_dict, save_name)

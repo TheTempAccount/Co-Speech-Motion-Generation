@@ -12,6 +12,9 @@ import cv2 as cv
 import random
 import warnings
 
+from functools import partial
+from multiprocessing import Pool
+
 
 def cvt25(our_poses):
     seq_len = our_poses.shape[0]
@@ -57,6 +60,26 @@ def smooth(res):
             
     return np.array(smoothed)
 
+def make_img(keypoint_npy, edge_lists, h, w, nc, basic_points_only, remove_face_labels, random_drop_prob):
+    person_keypoints = np.asarray(keypoint_npy).reshape(-1, 135, 3)[0]
+    # Separate out the keypoint array to different parts.
+    pose_pts = person_keypoints[:25]
+    face_pts = person_keypoints[-68: ]
+    hand_pts_l = person_keypoints[(25): (25 + 21)]
+    hand_pts_r = person_keypoints[25+21:25+21+21]
+    all_pts = [pose_pts, face_pts, hand_pts_l, hand_pts_r]
+    all_pts = [extract_valid_keypoints(pts, edge_lists)
+                for pts in all_pts]
+
+    pose_img = connect_pose_keypoints(all_pts, edge_lists,
+                                        (h, w, nc),
+                                        basic_points_only,
+                                        remove_face_labels,
+                                        random_drop_prob)
+    pose_img = pose_img.astype(np.uint8)
+    
+    return pose_img
+
 def draw_openpose_npy(resize_h, resize_w, crop_h, crop_w, original_h,
                       original_w, is_flipped, cfgdata, keypoints_npy, remove_face_labels=False):
     r"""Connect the OpenPose keypoints to edges and draw the pose map.
@@ -88,31 +111,41 @@ def draw_openpose_npy(resize_h, resize_w, crop_h, crop_w, original_h,
     edge_lists = define_edge_lists(basic_points_only)
 
     outputs = []
-    for keypoint_npy in tqdm(keypoints_npy, ncols=50):
-        person_keypoints = np.asarray(keypoint_npy).reshape(-1, 135, 3)[0]
+    draw_img = partial(make_img, edge_lists=edge_lists, h=h, w=w, nc=nc, basic_points_only=basic_points_only, remove_face_labels=remove_face_labels, random_drop_prob=random_drop_prob)
+
+    # pbar = tqdm(total = len(keypoints_npy), ncols=50)
+    num_process = int(os.cpu_count()/2)
+    with tqdm(total = len(keypoints_npy), ncols=50) as pbar:
+        with Pool(processes=num_process) as pool:
+            for v in pool.map(draw_img, keypoints_npy):
+                assert v.shape[0] == h and v.shape[1] == w, v.shape
+                outputs.append(v)
+                pbar.update()
+    # for keypoint_npy in tqdm(keypoints_npy, ncols=50):
+    #     person_keypoints = np.asarray(keypoint_npy).reshape(-1, 135, 3)[0]
         
-        pose_pts = person_keypoints[:25]
-        face_pts = person_keypoints[-68:]
-        hand_pts_l = person_keypoints[(25): (25 + 21)]
-        hand_pts_r = person_keypoints[25+21:25+21+21]
-        all_pts = [pose_pts, face_pts, hand_pts_l, hand_pts_r]
+    #     pose_pts = person_keypoints[:25]
+    #     face_pts = person_keypoints[-68:]
+    #     hand_pts_l = person_keypoints[(25): (25 + 21)]
+    #     hand_pts_r = person_keypoints[25+21:25+21+21]
+    #     all_pts = [pose_pts, face_pts, hand_pts_l, hand_pts_r]
         
-        all_pts = [extract_valid_keypoints(pts, edge_lists)
-                   for pts in all_pts]
+    #     all_pts = [extract_valid_keypoints(pts, edge_lists)
+    #                for pts in all_pts]
 
         
-        pose_img = connect_pose_keypoints(all_pts, edge_lists,
-                                          (h, w, nc),
-                                          basic_points_only,
-                                          remove_face_labels,
-                                          random_drop_prob)
+    #     pose_img = connect_pose_keypoints(all_pts, edge_lists,
+    #                                       (h, w, nc),
+    #                                       basic_points_only,
+    #                                       remove_face_labels,
+    #                                       random_drop_prob)
 
 
 
 
 
-        pose_img = pose_img.astype(np.uint8)
-        outputs.append(pose_img)
+    #     pose_img = pose_img.astype(np.uint8)
+    #     outputs.append(pose_img)
     return outputs
 
 

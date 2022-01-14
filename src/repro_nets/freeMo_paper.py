@@ -111,17 +111,17 @@ class Generator(nn.Module):
 
             frame_0 = new_style
 
-            pred_poses, _ = self.seq_decoder(hidden, frame_0)
+            pred_poses,_ = self.seq_decoder(hidden, frame_0)
             pred_poses = pred_poses.permute(1, 2, 0)
             
             if self.recon_input:
                 hidden_his, new_style = self.latent_decoder(None, his_content, his_style, data_type='recon')
                 frame_0_his = new_style
-                recon_poses_his = self.seq_decoder(hidden_his, frame_0_his)
+                recon_poses_his,_ = self.seq_decoder(hidden_his, frame_0_his)
 
                 hidden_fut, new_style = self.latent_decoder(None, fut_content, fut_style, data_type='recon')
                 frame_0_fut = new_style
-                recon_poses_fut = self.seq_decoder(hidden_fut, frame_0_fut)
+                recon_poses_fut,_ = self.seq_decoder(hidden_fut, frame_0_fut)
 
                 recon_poses = (recon_poses_his.permute(1, 2, 0), recon_poses_fut.permute(1, 2, 0))
             else:
@@ -403,3 +403,5 @@ class TrainWrapper(TrainWrapperBaseClass):
         print(output.shape)
         print(code_seq)
         return output    
+
+    

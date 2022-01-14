@@ -10,7 +10,7 @@ import torch.nn as nn
 import numpy as np
 import json
 
-from nets import freeMo_Generator
+from nets import *
 from repro_nets import paper_Generator
 from trainer.options import parse_args
 from data_utils import torch_data
@@ -19,12 +19,22 @@ def init_model(model_name, model_path, args):
     if model_name == 'freeMo':
         generator = freeMo_Generator(args)
         generator.load_state_dict(torch.load(model_path)['generator'])
+    elif model_name == 'freeMo_old':
+        generator = freeMo_Generator_old(args)
+        generator.load_state_dict(torch.load(model_path)['generator'])
+    elif model_name == 'freeMo_Graph':
+        generator = freeMo_Graph_Generator(args)
+        generator.load_state_dict(torch.load(model_path)['generator'])
+    elif model_name == 'freeMo_Graph_v2':
+        generator = freeMo_Graph_Generator_v2(args)
+        generator.load_state_dict(torch.load(model_path)['generator'])
     elif model_name == 'freeMo_paper':
         generator = paper_Generator(args)
         model_ckpt = torch.load(model_path)
         if 'generator' in list(model_ckpt.keys()):
             generator.load_state_dict(model_ckpt['generator'])
         else:
+            model_ckpt = {'generator':model_ckpt}
             generator.load_state_dict(model_ckpt)
     else:
         raise NotImplementedError

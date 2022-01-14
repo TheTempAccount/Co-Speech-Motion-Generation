@@ -1,4 +1,3 @@
-import argparse
 import sys
 import os
 sys.path.append(os.getcwd())
@@ -219,6 +218,7 @@ class AudioEncoder(nn.Module):
 
 class Generator(nn.Module):
     '''
+    TODO: mel_spec和MFCC，aud_feat的维度设定成了num_frames，但是原版的模型实现里面并不是这样的
     '''
     def __init__(self, n_poses, pose_dim, n_pre_poses, use_template=False, template_length=0):
         super().__init__()
@@ -295,6 +295,7 @@ class TrainWrapper(TrainWrapperBaseClass):
     def __init__(self, args) -> None:
         self.args = args
         self.device = torch.device(self.args.gpu)
+
         self.generator = Generator(
             n_poses = self.args.generate_length,
             pose_dim = self.args.pose_dim,
@@ -419,10 +420,11 @@ class TrainWrapper(TrainWrapperBaseClass):
             return gen_loss, loss_dict
         else:
             raise ValueError(mode)
-    
+ 
     def infer_on_audio(self, aud_fn, initial_pose=None, norm_stats=None, **kwargs):
         '''
         initial_pose: (B, C, T)
+        对于不同的aud_fn生成的长度不一样，一种选择是类似原始的speech2gesture，每个aud_fn重新声明模型，设定不同的生成长度，由于只在没有参数的上采样中涉及了生成长度，所以还是可以读取同一个ckpt的。另一种是类似trimodal的，分段然后smoothing的方式
         '''
         output = []
         assert self.args.infer, "train mode"
@@ -438,6 +440,8 @@ class TrainWrapper(TrainWrapperBaseClass):
         assert pre_length == initial_pose.shape[-1]
         pre_poses = initial_pose.permute(0, 2, 1).to(self.device).to(torch.float32)
         B=pre_poses.shape[0]
+        
+
         
         aud_feat = get_melspec(aud_fn).transpose(1, 0)
         num_poses_to_generate = aud_feat.shape[-1]
@@ -488,7 +492,6 @@ class TrainWrapper(TrainWrapperBaseClass):
 
 
 if __name__ == '__main__':
-    
     from trainer.options import parse_args
     parser = parse_args()
     args = parser.parse_args(['--exp_name', '0', '--data_root','0','--speakers', '0', '--pre_pose_length', '4', '--generate_length', '64','--infer'])
@@ -501,3 +504,7 @@ if __name__ == '__main__':
     output = generator.infer_on_audio(aud_fn, initial_pose, norm_stats)
 
     print(output.shape) 
+
+    
+
+

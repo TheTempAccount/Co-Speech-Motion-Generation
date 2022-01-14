@@ -51,6 +51,7 @@ class SeqDecoderWrapper(nn.Module):
     '''
     def __init__(self,
         hidden_size,
+        in_size,
         out_size,
         num_steps,
         num_layers,
@@ -59,8 +60,11 @@ class SeqDecoderWrapper(nn.Module):
         super(SeqDecoderWrapper, self).__init__()
 
         self.num_steps = num_steps
-        self.lstm = nn.LSTM(input_size=512, hidden_size=1024, num_layers=1, batch_first=True)
-        self.fc = nn.Linear(1024, 108)
+        if rnn_cell == 'lstm':
+            self.rnn_cell = nn.LSTM(input_size=in_size, hidden_size=hidden_size, num_layers=num_layers, batch_first=True)
+        elif rnn_cell == 'gru':
+            self.rnn_cell = nn.GRU(input_size=in_size, hidden_size=hidden_size, num_layers=num_layers, batch_first=True)
+        self.fc = nn.Linear(hidden_size, out_size)
     
     def forward(self, x, frame_0):
     
@@ -68,7 +72,7 @@ class SeqDecoderWrapper(nn.Module):
         prev_states = x
         dec_input = frame_0
         for _ in range(self.num_steps):
-            output, prev_states = self.lstm(dec_input, prev_states)
+            output, prev_states = self.rnn_cell(dec_input, prev_states)
             outputs.append(output.squeeze(1))
         outputs = torch.stack(outputs, dim=1)
         outputs = self.fc(outputs)
@@ -375,6 +379,7 @@ class Generator(nn.Module):
         self.seq_dec = SeqDecoderWrapper(
             hidden_size=seq_dec_hidden_size,
             out_size=pose_dim,
+            in_size=embed_dim - content_dim,
             num_steps=num_steps,
             num_layers=seq_dec_num_layers,
             rnn_cell=rnn_cell
@@ -405,8 +410,6 @@ class Generator(nn.Module):
         )
 
     def forward(self, aud, pre_poses, gt_poses=None, mode='trans'):
-        
-        
         B, _, T = aud.shape
         if self.training:
             assert gt_poses is not None
@@ -658,7 +661,7 @@ class TrainWrapper(TrainWrapperBaseClass):
             raise ValueError
 
         return total_loss, loss_dict
-    
+ 
     def infer_on_audio(self, aud_fn, initial_pose=None, norm_stats=None, **kwargs):
         '''
         initial_pose: (B, C, T)

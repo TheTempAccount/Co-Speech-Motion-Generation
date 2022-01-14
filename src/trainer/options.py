@@ -9,7 +9,7 @@ def parse_args():
     parser.add_argument('--exp_name', required=True, type=str)
     parser.add_argument('--data_root', required=True, type=str)
     parser.add_argument('--speakers', required=True, nargs='+')
-    parser.add_argument('--model_name', choices=['freeMo', 'freeMo_paper'], default='freeMo', type=str)
+    parser.add_argument('--model_name', choices=['freeMo', 'freeMo_paper', 'freeMo_old', 'freeMo_Graph', 'freeMo_Graph_v2'], default='freeMo', type=str)
     parser.add_argument('--shell_cmd', type=str)
     parser.add_argument('--batch_size', default=64, type=int)
     parser.add_argument('--num_workers', default=2, type=int)
@@ -76,5 +76,9 @@ def parse_args():
     parser.add_argument('--feat_method', default='mel_spec', type=str)
     parser.add_argument('--aud_feat_dim', default=64, type=int)
     
+    #for graph
+    parser.add_argument('--residual', action='store_true')
+    parser.add_argument('--local_bn', action="store_true")
+    parser.add_argument('--graph_type', default='part', choices=['part', 'whole'], type=str)
     
     return parser

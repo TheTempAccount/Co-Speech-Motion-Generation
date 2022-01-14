@@ -120,7 +120,7 @@ class PoseDataset():
         if len(neck_to_nose_len) > 0:
             scale_factor = np.mean(neck_to_nose_len)
         else:
-            print('no frame with angle less than 0.1:',k)
+            print('no frame with angle less than 0.1:')
             raise ValueError
 
         mean_position=np.mean(np.array(mean_position), axis=0)
@@ -349,7 +349,6 @@ class MultiVidData():
         assert self.complete_data.shape[-1] == (12+21+21)*2
         self.normalize_stats = {}
         if self.normalization:
-            
             data_mean, data_std = self._normalization_stats(self.complete_data)
             self.data_mean = data_mean.reshape(1, 1, -1)
             self.data_std = data_std.reshape(1, 1, -1)
@@ -378,9 +377,25 @@ class MultiVidData():
             self.all_dataset = data.ConcatDataset(self.all_dataset_list)
     
     def _normalization_stats(self, complete_data):
-        data_mean = np.mean(complete_data, axis=0)
+        # data_mean = np.mean(complete_data, axis=0)
+        # data_std = np.std(complete_data, axis=0)
+        # data_std[np.where(data_std==0)] = 1e-9
+        
+        print('warning: using new data normalization')
+        complete_data = complete_data.reshape(complete_data.shape[0], 54, 2).reshape(-1, 2)
+        data_mean = np.mean(complete_data, axis=0)#(2)，理应是(108)
         data_std = np.std(complete_data, axis=0)
-        data_std[np.where(data_std==0)] = 1e-9
+        data_mean = data_mean.squeeze().reshape(1, 2)
+        data_mean = np.repeat(data_mean, 54, 0)
+        assert data_mean.shape[0] == 54 and data_mean.shape[1] == 2
+        data_mean = data_mean.reshape(-1)
+
+        data_std = data_std.squeeze().reshape(1, 2)
+        data_std = np.repeat(data_std, 54, 0)
+        assert data_std.shape[0] == 54 and data_std.shape[1] == 2
+        data_std = data_std.reshape(-1)
+        
+        data_std[np.where(data_std==0)] = 1e-9 
 
         return data_mean, data_std
 
