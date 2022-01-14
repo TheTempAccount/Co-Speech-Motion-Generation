@@ -501,7 +501,3 @@ if __name__ == '__main__':
     output = generator.infer_on_audio(aud_fn, initial_pose, norm_stats)
 
     print(output.shape) 
-
-    
-
-
