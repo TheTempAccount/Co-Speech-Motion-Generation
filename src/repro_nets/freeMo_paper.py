@@ -183,6 +183,9 @@ class TrainWrapper(TrainWrapperBaseClass):
             training=(not self.args.infer),
             augmentation=False
         ).to(self.device)
+
+        self.discriminator = None
+
         self.rec_loss = KeypointLoss().to(self.device)
         self.reg_loss = KeypointLoss().to(self.device)
         self.kl_loss = KLLoss(kl_tolerance=self.args.kl_tolerance).to(self.device)
@@ -191,19 +194,8 @@ class TrainWrapper(TrainWrapperBaseClass):
         self.r_loss = AudioLoss().to(self.device)
         
         self.global_step = 0
-    
-    def init_optimizer(self) -> None:
-        self.generator_optimizer = optim.Adam(
-            self.generator.parameters(),
-            lr = self.args.generator_learning_rate,
-            betas=[0.9, 0.999]
-        )
-        if self.discriminator is not None:
-            self.discriminator_optimizer = optim.Adam(
-                self.discriminator.parameters(),
-                lr = self.args.discriminator_learning_rate,
-                betas=[0.9, 0.999]
-            )
+
+        super().__init__(args)
 
     def __call__(self, bat):
         assert (not self.args.infer), "infer mode"
@@ -344,15 +336,6 @@ class TrainWrapper(TrainWrapperBaseClass):
             raise ValueError
 
         return total_loss, loss_dict
-
-    def state_dict(self):
-        return self.generator.state_dict()
-
-    def parameters(self):
-        return self.generator.parameters()
-
-    def load_state_dict(self, state_dict):
-        self.generator.load_state_dict(state_dict)
     
     def infer_on_audio(self, aud_fn, initial_pose=None, norm_stats=None, **kwargs):
         '''
@@ -420,5 +403,3 @@ class TrainWrapper(TrainWrapperBaseClass):
         print(output.shape)
         print(code_seq)
         return output    
-
-    

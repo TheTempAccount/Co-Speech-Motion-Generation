@@ -33,7 +33,7 @@ class Trainer():
 
         self.init_model()
         self.init_dataloader()
-        self.init_optimizer()
+        # self.init_optimizer()
 
         self.global_steps = 0
 
@@ -119,17 +119,18 @@ class Trainer():
             raise NotImplementedError
 
     def init_optimizer(self):
-        self.generator_optimizer = optim.Adam(
-            self.generator.parameters(),
-            lr = self.args.generator_learning_rate,
-            betas=[0.9, 0.999]
-        )
-        if self.discriminator is not None:
-            self.discriminator_optimizer = optim.Adam(
-                self.discriminator.parameters(),
-                lr = self.args.discriminator_learning_rate,
-                betas=[0.9, 0.999]
-            )
+        pass #deprecated
+        # self.generator_optimizer = optim.Adam(
+        #     self.generator.parameters(),
+        #     lr = self.args.generator_learning_rate,
+        #     betas=[0.9, 0.999]
+        # )
+        # if self.discriminator is not None:
+        #     self.discriminator_optimizer = optim.Adam(
+        #         self.discriminator.parameters(),
+        #         lr = self.args.discriminator_learning_rate,
+        #         betas=[0.9, 0.999]
+        #     )
 
     def print_func(self, loss_dict):
         info_str = ['global_steps:%d'%(self.global_steps)]
@@ -141,16 +142,11 @@ class Trainer():
             'generator': self.generator.state_dict(),
             'epoch': epoch,
             'global_steps': self.global_steps,
-            'generator_optim': self.generator_optimizer.state_dict(),
-            'discriminator': self.discriminator.state_dict() if self.discriminator is not None else None,
-            'discriminator_optim': self.discriminator_optimizer.state_dict() if self.discriminator is not None else None
         }
         save_name = os.path.join(self.train_dir, 'ckpt-%d.pth'%(epoch))
         torch.save(state_dict, save_name)
 
     def train_epoch(self):
-        
-        
         for bat in zip(self.trans_loader, self.zero_loader):
             self.global_steps += 1
             _, loss_dict = self.generator(bat)
