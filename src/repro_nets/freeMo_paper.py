@@ -111,7 +111,7 @@ class Generator(nn.Module):
 
             frame_0 = new_style
 
-            pred_poses = self.seq_decoder(hidden, frame_0)
+            pred_poses, _ = self.seq_decoder(hidden, frame_0)
             pred_poses = pred_poses.permute(1, 2, 0)
             
             if self.recon_input:

@@ -72,7 +72,17 @@ class SeqDecoderWrapper(nn.Module):
     def forward(self, x, frame_0):
         
         x = self.decoder(x, frame_0)
-        return x   
+        return x
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
 
 class LatentEncoderWrapper(nn.Module):
     def __init__(self,
