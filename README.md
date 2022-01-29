@@ -26,7 +26,7 @@ The repo for our work "Free-form Body Motion Generation from Speech" (paper comm
     |   |--trainer //args and trainer
 
 - [x] code 
-- [ ] data 
+- [ ] data preparation
 
 ### Inference
 
@@ -38,4 +38,4 @@ The results will be saved in "results/[model_name]", including the json file of 
 For explanation of the flags, see [here](src/backup/).
 
 ### Training
-The *train.sh* will be usable once I upload the data. You can also modify the code to use publicly avaliable gesture dataset.
+The *train.sh* will be usable once I upload the processed data . You can also modify the code to use publicly avaliable gesture dataset.
