@@ -1,0 +1,32 @@
+python scripts/infer.py --gpu 1 \
+                        --exp_name exp_7_4 \
+                        --data_root ../../pose_dataset/videos/ \
+                        --speakers Dan_Ariely \
+                        --model_name freeMo_Graph_v2 \
+                        --epochs 50 \
+                        --save_every 2  \
+                        --print_every 100 \
+                        --normalization \
+                        --save_dir \
+                        ../../experiments \
+                        --aud_decoding \
+                        --r_loss_weight 0.1 \
+                        --kl_loss_weight 0.001 \
+                        --recon_input \
+                        --embed_dim 1024 \
+                        --content_dim 512 \
+                        --noise_dim 256 \
+                        --seq_enc_hidden_size 1024 \
+                        --seq_dec_hidden_size 1024 \
+                        --latent_enc_fc_size 1024 \
+                        --latent_enc_num_layers 3 \
+                        --latent_dec_num_layers 3 \
+                        --T_layer_norm \
+                        --rnn_cell lstm \
+                        --interaction concat \
+                        --shell_cmd train.sh \
+                        --residual \
+                        --graph_type part_class \
+                        --share_weights \
+                        --infer \
+                        --model_path ../../experiments/2022-01-17-exp_7_4-14:27:04/ckpt-49.pth

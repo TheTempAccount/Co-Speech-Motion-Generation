@@ -39,6 +39,9 @@ class SeqDecoder(nn.Module):
         outputs=torch.stack(outputs, dim=0)
         outputs=self.fc(outputs)
         
+        
+        
+        
         return outputs, prev_states
 
 if __name__ == "__main__":

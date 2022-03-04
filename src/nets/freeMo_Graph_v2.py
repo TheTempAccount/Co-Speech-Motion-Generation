@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from nets.layers import *
+from nets.graph_definition import *
 from nets.base import TrainWrapperBaseClass
 from losses import KeypointLoss, KLLoss, VelocityLoss, L2RegLoss, AudioLoss
 from nets.utils import parse_audio, denormalize
@@ -15,33 +16,30 @@ import numpy as np
 
 class SeqEncoderWrapper(nn.Module):
     '''
-    LSTM-FC
+    使用graph进行seq的encoder
     '''
     def __init__(self,
-        in_size,
+        A,
+        T,
         embed_size,
-        hidden_size,
-        num_layers,
-        rnn_cell='gru',
-        bidirectional=False
+        layer_configs,
+        residual=True,
+        local_bn=False,
+        share_weights = False
     ):
         super(SeqEncoderWrapper, self).__init__()
-        self.rnn_cell = SeqEncoderRNN(
-            hidden_size=hidden_size,
-            in_size=in_size,
-            num_rnn_layers=num_layers,
-            rnn_cell = rnn_cell,
-            bidirectional=bidirectional
+        self.seq_enc = SeqEncoderGraph(
+            embedding_size=embed_size,
+            layer_configs=layer_configs,
+            residual=residual,
+            local_bn=local_bn,
+            A = A,
+            T = T,
+            share_weights=share_weights
         )
-        if bidirectional:
-            self.fc = nn.Linear(hidden_size*2, embed_size)
-        else:
-            self.fc = nn.Linear(hidden_size, embed_size)
-    
+
     def forward(self, x):
-        
-        x = self.rnn_cell(x, None)
-        x = self.fc(x)
+        x = self.seq_enc(x)
         return x
 
 class SeqDecoderWrapper(nn.Module):
@@ -64,15 +62,12 @@ class SeqDecoderWrapper(nn.Module):
             T_out=num_steps,
             num_layers=num_layers,
             rnn_cell=rnn_cell
-        )
-        
-        
-        
+        ) 
     
     def forward(self, x, frame_0):
         
         x = self.decoder(x, frame_0)
-        return x
+        return x  
 
 class LatentEncoderWrapper(nn.Module):
     def __init__(self,
@@ -345,21 +340,22 @@ class Generator(nn.Module):
         noise_dim,
         aud_dim,
         num_steps,
-        seq_enc_hidden_size,
-        seq_enc_num_layers,
         seq_dec_hidden_size,
         seq_dec_num_layers,
         latent_enc_fc_size,
         latent_enc_num_layers,
         latent_dec_num_layers,
         aud_kernel_size,
+        residual = True,
+        local_bn = False,
         training=True,
         aud_decoding=True,
         recon_input=True,
         T_layer_norm=False,
         interaction='add',
         rnn_cell = 'gru',
-        bidirectional=False
+        graph_type = 'part',
+        share_weights = False
     ):
         super(Generator, self).__init__()
         self.training = training
@@ -367,13 +363,33 @@ class Generator(nn.Module):
         self.noise_dim = noise_dim
         self.aud_decoding = aud_decoding
         self.recon_input = recon_input
+
+        print("warning: layer configs for graph seq encoder are hard coded")
+        if graph_type == 'part':
+            A = np.stack([self_graph, hand_graph, arm_graph, body_graph])
+        elif graph_type == 'whole':
+            A = np.stack([self_graph, whole_graph])
+        elif graph_type == 'part_class':
+            A = np.stack([self_graph, hand_graph, arm_graph, body_graph, hand_class_graph, arm_class_graph])
+        elif graph_type == 'part_class_share_weights':
+            raise NotImplementedError
+
         self.seq_enc = SeqEncoderWrapper(
-            in_size=pose_dim,
+            A = A,
+            T = num_steps,
             embed_size=embed_dim,
-            hidden_size=seq_enc_hidden_size,
-            num_layers=seq_enc_num_layers,
-            rnn_cell=rnn_cell,
-            bidirectional=bidirectional
+            layer_configs=[(2, 32, 5), 
+                       (32, 32, 5), 
+                       (32, 64, 5), 
+                       (64, 64, 5), 
+                       (64, 128, 5), 
+                       (128, 128, 5), 
+                       (128, 256, 5), 
+                       (256, 256, 5), 
+                       (256, 128, 5)],
+            residual=residual,
+            local_bn=local_bn,
+            share_weights=share_weights
         )
         self.seq_dec = SeqDecoderWrapper(
             hidden_size=seq_dec_hidden_size,
@@ -498,21 +514,22 @@ class TrainWrapper(TrainWrapperBaseClass):
             noise_dim=self.args.noise_dim,
             aud_dim=self.args.aud_dim,
             num_steps=self.args.generate_length,
-            seq_enc_hidden_size=self.args.seq_enc_hidden_size,
-            seq_enc_num_layers=self.args.seq_enc_num_layers,
             seq_dec_hidden_size=self.args.seq_dec_hidden_size,
             seq_dec_num_layers=self.args.seq_dec_num_layers,
             latent_enc_fc_size=self.args.latent_enc_fc_size,
             latent_enc_num_layers=self.args.latent_enc_num_layers,
             latent_dec_num_layers=self.args.latent_dec_num_layers,
             aud_kernel_size=self.args.aud_kernel_size,
+            residual=self.args.residual,
+            local_bn=self.args.local_bn,
             recon_input=self.args.recon_input,
             training=(not self.args.infer),
             aud_decoding=self.args.aud_decoding,
             T_layer_norm=self.args.T_layer_norm,
             interaction=self.args.interaction,
             rnn_cell=self.args.rnn_cell,
-            bidirectional=self.args.bidirectional
+            graph_type=self.args.graph_type,
+            share_weights=self.args.share_weights
         ).to(self.device)
 
         self.discriminator = None

@@ -73,7 +73,7 @@ class SeqDecoderWrapper(nn.Module):
         
         x = self.decoder(x, frame_0)
         return x
-
+        
 class LatentEncoderWrapper(nn.Module):
     def __init__(self,
         embed_size,
@@ -326,12 +326,8 @@ class AudioTranslatorWrapper(nn.Module):
         kernel_size,
     ):
         super(AudioTranslatorWrapper, self).__init__()
-        self.conv_layer = SeqTranslator1D(
-            C_in=C_in,
-            C_out=C_out,
-            kernel_size=kernel_size,
-            stride=1,
-            min_layers_num=3
+        #TODO: hard coded
+        self.conv_layer = SeqTranslator2D(
         )
     
     def forward(self, x):

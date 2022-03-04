@@ -1,8 +1,13 @@
 import os
 import sys
 
-from numpy.core.defchararray import split
 sys.path.append(os.getcwd())
+
+from data_utils import csv_data, torch_data
+
+from trainer.options import parse_args
+from nets import *
+from repro_nets import *
 
 import torch
 import torch.utils.data as data
@@ -13,10 +18,6 @@ import logging
 import time
 import shutil
 
-from trainer.options import parse_args
-from nets import *
-from repro_nets import *
-from data_utils import csv_data, torch_data
 
 class Trainer():
     def __init__(self) -> None:
@@ -31,8 +32,8 @@ class Trainer():
         assert self.args.shell_cmd is not None, "save the shell cmd"
         shutil.copy(self.args.shell_cmd, self.train_dir)
 
-        self.init_model()
         self.init_dataloader()
+        self.init_model()
         # self.init_optimizer()
 
         self.global_steps = 0
@@ -61,13 +62,25 @@ class Trainer():
 
     def init_model(self):
         if self.args.model_name == 'freeMo':
-            self.generator = freeMo_Generator(
-                self.args
-            )
+            if not self.args.context_info:
+                self.generator = freeMo_Generator(
+                    self.args
+                )
+            else:
+                self.generator = new_aud_Generator(
+                    self.args
+                )
+
         elif self.args.model_name == 'freeMo_old':
-            self.generator = freeMo_Generator_old(
-                self.args
-            )
+            if not self.args.context_info:
+                self.generator = freeMo_Generator_old(
+                    self.args
+                )
+            else:
+                self.generator = old_new_aud_Generator(
+                    self.args
+                )
+
         elif self.args.model_name == 'freeMo_Graph':
             self.generator = freeMo_Graph_Generator(
                 self.args
@@ -114,7 +127,8 @@ class Trainer():
                 num_frames=self.args.generate_length,
                 aud_feat_win_size=self.args.aud_feat_win_size,
                 aud_feat_dim=self.args.aud_feat_dim,
-                feat_method=self.args.feat_method
+                feat_method=self.args.feat_method,
+                context_info=self.args.context_info
             )
 
             if self.args.normalization:

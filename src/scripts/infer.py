@@ -1,12 +1,9 @@
 import os
 import sys
 
-from torch.utils import data
 sys.path.append(os.getcwd())
 from glob import glob
 
-import torch
-import torch.nn as nn
 import numpy as np
 import json
 
@@ -14,6 +11,10 @@ from nets import *
 from repro_nets import paper_Generator
 from trainer.options import parse_args
 from data_utils import torch_data
+
+import torch
+import torch.nn as nn
+from torch.utils import data
 
 def init_model(model_name, model_path, args):
     if model_name == 'freeMo':

@@ -2,15 +2,11 @@ import sys
 import os
 sys.path.append(os.getcwd())
 
-from posixpath import split
 import numpy as np
 import json
 from glob import glob
-from numpy.core.defchararray import not_equal
-from numpy.lib.utils import source
-import torch.utils.data as data
-import random
 from data_utils.utils import *
+import random
 from data_utils.checker import auto_label
 from data_utils.augmentation import LimbScaling
 import torch.utils.data as data
@@ -37,7 +33,9 @@ class PoseDataset():
                 split_trans_zero = False, 
                 limbscaling=False, 
                 num_frames=25, 
-                num_pre_frames=25):
+                num_pre_frames=25,
+                context_info=False
+                ):
         
         self.data_root=data_root
         self.speaker = speaker
@@ -48,6 +46,7 @@ class PoseDataset():
         self.fps = fps
         self.audio_feat_dim = audio_feat_dim
         self.audio_feat_win_size = audio_feat_win_size
+        self.context_info = context_info #for aud feat
 
         self.train=train
         self.load_all = load_all
@@ -221,21 +220,42 @@ class PoseDataset():
                 conf = conf[num_pre_frames:, :]
 
                 '''
-                音频特征，不包含pre的
+                audio feature，
+                context info: history and future
                 '''
-                if self.audio_feat_win_size is None:
-                    audio_feat = self.audio_feat[index+num_pre_frames:index+seq_len, ...]
-                    if audio_feat.shape[0] < self.num_frames:
-                        audio_feat = np.pad(audio_feat, [[0, self.num_frames-audio_feat.shape[0]], [0, 0]], mode='reflect')
-                    
-                    assert audio_feat.shape[0] == self.num_frames and audio_feat.shape[1] == self.audio_feat_dim
-                else:
-                    start_sec = (index + num_frames) / 25 
-                    start_steps = int(start_sec / 0.01) 
-                    mfcc_feature = self.audio_feat[start_steps:start_steps+100, :]
-                    if mfcc_feature.shape[0] != 100:
-                        mfcc_feature = np.pad(mfcc_feature, [[0, 100 - mfcc_feature.shape[-1]], [0, 0]], mode='reflect')
-                    audio_feat = mfcc_feature
+                if not self.context_info:
+                    if self.audio_feat_win_size is None:
+                        audio_feat = self.audio_feat[index+num_pre_frames:index+seq_len, ...]
+                        if audio_feat.shape[0] < self.num_frames:
+                            audio_feat = np.pad(audio_feat, [[0, self.num_frames-audio_feat.shape[0]], [0, 0]], mode='reflect')
+                        
+                        assert audio_feat.shape[0] == self.num_frames and audio_feat.shape[1] == self.audio_feat_dim
+                    else:
+                        #older version, where audio_feat_win_size is 100/1s
+                        #TODO: not ready
+                        start_sec = (index + num_frames) / 25 
+                        start_steps = int(start_sec / 0.01) 
+                        mfcc_feature = self.audio_feat[start_steps:start_steps+100, :]
+                        if mfcc_feature.shape[0] != 100:
+                            mfcc_feature = np.pad(mfcc_feature, [[0, 100 - mfcc_feature.shape[-1]], [0, 0]], mode='reflect')
+                        audio_feat = mfcc_feature
+                else:#提取音频的时候包含历史的和未来的
+                    if self.audio_feat_win_size is None:
+                        audio_feat = self.audio_feat[index:index+seq_len+num_frames, ...]
+                        if audio_feat.shape[0] < seq_len+num_frames:
+                            audio_feat = np.pad(audio_feat, [[0, seq_len + self.num_frames-audio_feat.shape[0]], [0, 0]], mode='constant')
+                        
+                        assert audio_feat.shape[0] == self.num_frames+seq_len and audio_feat.shape[1] == self.audio_feat_dim
+                    else:
+                        #older version, where audio_feat_win_size is 100/1s
+                        #TODO: not ready
+                        raise NotImplementedError
+                        start_sec = (index) / 25 
+                        start_steps = int(start_sec / 0.01) 
+                        mfcc_feature = self.audio_feat[start_steps:start_steps+100, :]
+                        if mfcc_feature.shape[0] != 100:
+                            mfcc_feature = np.pad(mfcc_feature, [[0, 100 - mfcc_feature.shape[-1]], [0, 0]], mode='constant')
+                        audio_feat = mfcc_feature
 
                 if child.normalization:
                     data_mean = child.normalize_stats['mean'].reshape(1, 108)
@@ -277,7 +297,6 @@ class PoseDataset():
     def __len__(self):
         return len(self.img_name_list)
 
-
 class MultiVidData():
     def __init__(self, 
                 data_root, 
@@ -290,7 +309,8 @@ class MultiVidData():
                 num_pre_frames=25,
                 aud_feat_win_size=None,
                 aud_feat_dim=64,
-                feat_method='mel_spec'
+                feat_method='mel_spec',
+                context_info=False
                 ):
         self.data_root = data_root
         self.speakers = speakers
@@ -341,7 +361,8 @@ class MultiVidData():
                         limbscaling=self.limbscaling,
                         num_frames=self.num_frames,
                         num_pre_frames=self.num_pre_frames,
-                        audio_feat_win_size=aud_feat_win_size
+                        audio_feat_win_size=aud_feat_win_size,
+                        context_info=context_info
                     )
                     self.complete_data.append(self.dataset[key].complete_data)
 
@@ -377,11 +398,12 @@ class MultiVidData():
             self.all_dataset = data.ConcatDataset(self.all_dataset_list)
     
     def _normalization_stats(self, complete_data):
+        # old data normalization
         # data_mean = np.mean(complete_data, axis=0)
         # data_std = np.std(complete_data, axis=0)
         # data_std[np.where(data_std==0)] = 1e-9
         
-        print('warning: using new data normalization')
+        print('warning: using new data normalization, same pretrained models are based on old data normalization')
         complete_data = complete_data.reshape(complete_data.shape[0], 54, 2).reshape(-1, 2)
         data_mean = np.mean(complete_data, axis=0)#(2)，理应是(108)
         data_std = np.std(complete_data, axis=0)
@@ -400,42 +422,4 @@ class MultiVidData():
         return data_mean, data_std
 
 if __name__ == '__main__':
-    test_set_base = MultiVidData(
-        data_root='../pose_dataset/videos',
-        speakers=['Dena_Simmons'],
-        split='test',
-        limbscaling=False,
-        normalization=False,
-        split_trans_zero=False,
-        num_pre_frames=25, num_frames=25, aud_feat_win_size=100, feat_method='mfcc', aud_feat_dim=13
-    )
-
-    
-    
-    
-
-    
-    
-
-    
-    
-    
-    
-    
-
-    
-    
-    
-    
-    
-
-    test_set_base.get_dataset()
-    all_set = test_set_base.all_dataset
-    
-    all_loader = data.DataLoader(all_set, batch_size=64)
-
-    for step, bat in enumerate(all_loader):
-        print(step)
-        print(bat['poses'].shape, bat['poses'].shape)
-        print(bat['pre_poses'].shape, bat['pre_poses'].shape)
-        print(bat['aud_feat'].shape, bat['aud_feat'].shape)
+    pass

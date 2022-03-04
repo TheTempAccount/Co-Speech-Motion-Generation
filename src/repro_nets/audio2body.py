@@ -18,10 +18,6 @@ class Generator(nn.Module):
         num_layers=1
     ):
         super(Generator, self).__init__()
-
-        
-
-        
         self.cell = AudioPoseEncoderRNN(
             C_in=in_dim,
             hidden_size=hidden_dim,
@@ -34,7 +30,6 @@ class Generator(nn.Module):
         self.initialize()
 
     def initialize(self):
-        
         for layer in self.cell.cell._all_weights:
             for param_name in layer:
                 if 'weight' in param_name:
@@ -44,7 +39,6 @@ class Generator(nn.Module):
                     bias = getattr(self.cell.cell, param_name)
                     init.uniform_(bias.data, 0.25, 0.5)
 
-        
         init.xavier_normal_(self.fc.weight.data)
         init.constant_(self.fc.bias.data, 0)
 

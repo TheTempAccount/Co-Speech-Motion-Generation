@@ -62,7 +62,7 @@ def parse_args():
     parser.add_argument('--interaction', default='add', type=str)
     parser.add_argument('--rnn_cell', default='gru', type=str)
     parser.add_argument('--bidirectional', action='store_true')
-    
+    parser.add_argument('--context_info', action="store_true")
     
     parser.add_argument('--use_template', action='store_true')
     parser.add_argument('--template_length', default=0, type=int)
@@ -79,6 +79,7 @@ def parse_args():
     #for graph
     parser.add_argument('--residual', action='store_true')
     parser.add_argument('--local_bn', action="store_true")
-    parser.add_argument('--graph_type', default='part', choices=['part', 'whole'], type=str)
+    parser.add_argument('--graph_type', default='part', choices=['part', 'whole', 'part_class'], type=str)
+    parser.add_argument('--share_weights', action='store_true')
     
     return parser

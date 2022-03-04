@@ -7,50 +7,49 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from nets.layers import *
-from nets.base import TrainWrapperBaseClass
+from nets.graph_definition import *
 from losses import KeypointLoss, KLLoss, VelocityLoss, L2RegLoss, AudioLoss
 from nets.utils import parse_audio, denormalize
+from nets.base import TrainWrapperBaseClass
 from data_utils import get_mfcc, get_melspec
 import numpy as np
 
+
 class SeqEncoderWrapper(nn.Module):
     '''
-    LSTM-FC
+    使用graph进行seq的encoder
     '''
     def __init__(self,
-        in_size,
+        A,
+        T,
         embed_size,
-        hidden_size,
-        num_layers,
-        rnn_cell='gru',
-        bidirectional=False
+        layer_configs,
+        residual=True,
+        local_bn=False,
+        share_weights=False
     ):
         super(SeqEncoderWrapper, self).__init__()
-        self.rnn_cell = SeqEncoderRNN(
-            hidden_size=hidden_size,
-            in_size=in_size,
-            num_rnn_layers=num_layers,
-            rnn_cell = rnn_cell,
-            bidirectional=bidirectional
+        self.seq_enc = SeqEncoderGraph(
+            embedding_size=embed_size,
+            layer_configs=layer_configs,
+            residual=residual,
+            local_bn=local_bn,
+            A = A,
+            T = T,
+            share_weights=share_weights
         )
-        if bidirectional:
-            self.fc = nn.Linear(hidden_size*2, embed_size)
-        else:
-            self.fc = nn.Linear(hidden_size, embed_size)
     
     def forward(self, x):
-        
-        x = self.rnn_cell(x, None)
-        x = self.fc(x)
+        x = self.seq_enc(x)
         return x
 
 class SeqDecoderWrapper(nn.Module):
     '''
     LSTM-FC. 
-    迭代式的decoder似乎会造成输出存在不自然抖动的问题
     '''
     def __init__(self,
         hidden_size,
+        in_size,
         out_size,
         num_steps,
         num_layers,
@@ -58,21 +57,24 @@ class SeqDecoderWrapper(nn.Module):
     ):
         super(SeqDecoderWrapper, self).__init__()
 
-        self.decoder = SeqDecoderRNN(
-            hidden_size=hidden_size,
-            C_out=out_size,
-            T_out=num_steps,
-            num_layers=num_layers,
-            rnn_cell=rnn_cell
-        )
-        
-        
-        
+        self.num_steps = num_steps
+        if rnn_cell == 'lstm':
+            self.rnn_cell = nn.LSTM(input_size=in_size, hidden_size=hidden_size, num_layers=num_layers, batch_first=True)
+        elif rnn_cell == 'gru':
+            self.rnn_cell = nn.GRU(input_size=in_size, hidden_size=hidden_size, num_layers=num_layers, batch_first=True)
+        self.fc = nn.Linear(hidden_size, out_size)
     
     def forward(self, x, frame_0):
-        
-        x = self.decoder(x, frame_0)
-        return x
+    
+        outputs = []
+        prev_states = x
+        dec_input = frame_0
+        for _ in range(self.num_steps):
+            output, prev_states = self.rnn_cell(dec_input, prev_states)
+            outputs.append(output.squeeze(1))
+        outputs = torch.stack(outputs, dim=1)
+        outputs = self.fc(outputs)
+        return outputs.permute(0, 2, 1)
 
 class LatentEncoderWrapper(nn.Module):
     def __init__(self,
@@ -317,9 +319,6 @@ class LatentDecoderWrapper(nn.Module):
             raise ValueError
 
 class AudioTranslatorWrapper(nn.Module):
-    '''
-    (B, C_in, T)->(B, C_out, T)。
-    '''
     def __init__(self,
         C_in,
         C_out,
@@ -345,21 +344,22 @@ class Generator(nn.Module):
         noise_dim,
         aud_dim,
         num_steps,
-        seq_enc_hidden_size,
-        seq_enc_num_layers,
         seq_dec_hidden_size,
         seq_dec_num_layers,
         latent_enc_fc_size,
         latent_enc_num_layers,
         latent_dec_num_layers,
         aud_kernel_size,
+        residual = True,
+        local_bn = False,
         training=True,
         aud_decoding=True,
         recon_input=True,
         T_layer_norm=False,
         interaction='add',
         rnn_cell = 'gru',
-        bidirectional=False
+        graph_type = 'part',
+        share_weights=False
     ):
         super(Generator, self).__init__()
         self.training = training
@@ -367,17 +367,39 @@ class Generator(nn.Module):
         self.noise_dim = noise_dim
         self.aud_decoding = aud_decoding
         self.recon_input = recon_input
+        print("warning: layer configs for graph seq encoder are hard coded")
+        if graph_type == 'part':
+            A = np.stack([self_graph, hand_graph, arm_graph, body_graph])
+        elif graph_type == 'whole':
+            A = np.stack([self_graph, whole_graph])
+        elif graph_type == 'part_class':
+            A = np.stack([self_graph, hand_graph, arm_graph, body_graph, hand_class_graph, arm_class_graph])
+        elif graph_type == 'part_class_share_weights':
+            raise NotImplementedError
+
+
         self.seq_enc = SeqEncoderWrapper(
-            in_size=pose_dim,
+            A = A,
+            T = num_steps,
             embed_size=embed_dim,
-            hidden_size=seq_enc_hidden_size,
-            num_layers=seq_enc_num_layers,
-            rnn_cell=rnn_cell,
-            bidirectional=bidirectional
+            layer_configs=[(2, 32, 5), 
+                       (32, 32, 5), 
+                       (32, 64, 5), 
+                       (64, 64, 5), 
+                       (64, 128, 5), 
+                       (128, 128, 5), 
+                       (128, 256, 5), 
+                       (256, 256, 5), 
+                       (256, 128, 5)],
+            residual=residual,
+            local_bn=local_bn,
+            share_weights = share_weights
         )
+
         self.seq_dec = SeqDecoderWrapper(
             hidden_size=seq_dec_hidden_size,
             out_size=pose_dim,
+            in_size = embed_dim - content_dim,
             num_steps=num_steps,
             num_layers=seq_dec_num_layers,
             rnn_cell=rnn_cell
@@ -408,8 +430,6 @@ class Generator(nn.Module):
         )
 
     def forward(self, aud, pre_poses, gt_poses=None, mode='trans'):
-        
-        
         B, _, T = aud.shape
         if self.training:
             assert gt_poses is not None
@@ -425,28 +445,28 @@ class Generator(nn.Module):
             else:
                 raise ValueError
             hidden, new_style = self.latent_dec(z, his_feat, mode=mode)
+            if len(new_style.shape) == 2:
+                new_style = new_style.unsqueeze(1)
+            frame_0 = new_style
+            assert frame_0.shape[0] == B
             
-            
-            
-            
-            frame_0 = pre_poses[:, :, -1:]
             pred_poses = self.seq_dec(hidden, frame_0)
             
             if self.recon_input:
                 
                 
                 hidden_his, new_style = self.latent_dec(None, his_feat, mode='recon')
+                if len(new_style.shape) == 2:
+                    new_style = new_style.unsqueeze(1)
+                frame_0_his = new_style
                 
-                
-                
-                frame_0_his = pre_poses[:, :, 0:1]
                 recon_poses_his = self.seq_dec(hidden_his, frame_0_his)
 
                 hidden_fut, new_style = self.latent_dec(None, fut_feat, mode='recon')
+                if len(new_style.shape) == 2:
+                    new_style = new_style.unsqueeze(1)
+                frame_0_fut = new_style
                 
-                
-                
-                frame_0_fut = pre_poses[:, :, -1:]
                 recon_poses_fut = self.seq_dec(hidden_fut, frame_0_fut)
 
                 recon_poses = (recon_poses_his, recon_poses_fut)
@@ -472,10 +492,10 @@ class Generator(nn.Module):
                 z = None
             
             hidden, new_style = self.latent_dec(z, his_feat)
+            if len(new_style.shape) == 2:
+                new_style = new_style.unsqueeze(1)
+            frame_0 = new_style
             
-            
-            
-            frame_0 = pre_poses[:, :, -1:]
             pred_poses = self.seq_dec(hidden, frame_0)
 
             if mode == 'zero' and self.aud_decoding:
@@ -486,7 +506,7 @@ class Generator(nn.Module):
 
 class TrainWrapper(TrainWrapperBaseClass):
     '''
-    一个wrapper使其接受data_utils给出的数据，前向运算得到loss，
+    一个wrapper使其接受data_utils给出的数据，前向运算得到loss
     '''
     def __init__(self, args):
         self.args = args
@@ -498,21 +518,22 @@ class TrainWrapper(TrainWrapperBaseClass):
             noise_dim=self.args.noise_dim,
             aud_dim=self.args.aud_dim,
             num_steps=self.args.generate_length,
-            seq_enc_hidden_size=self.args.seq_enc_hidden_size,
-            seq_enc_num_layers=self.args.seq_enc_num_layers,
             seq_dec_hidden_size=self.args.seq_dec_hidden_size,
             seq_dec_num_layers=self.args.seq_dec_num_layers,
             latent_enc_fc_size=self.args.latent_enc_fc_size,
             latent_enc_num_layers=self.args.latent_enc_num_layers,
             latent_dec_num_layers=self.args.latent_dec_num_layers,
             aud_kernel_size=self.args.aud_kernel_size,
+            residual=self.args.residual,
+            local_bn=self.args.local_bn,
             recon_input=self.args.recon_input,
             training=(not self.args.infer),
             aud_decoding=self.args.aud_decoding,
             T_layer_norm=self.args.T_layer_norm,
             interaction=self.args.interaction,
             rnn_cell=self.args.rnn_cell,
-            bidirectional=self.args.bidirectional
+            graph_type=self.args.graph_type,
+            share_weights = self.args.share_weights
         ).to(self.device)
 
         self.discriminator = None
@@ -584,13 +605,13 @@ class TrainWrapper(TrainWrapperBaseClass):
         loss_dict = {}
         for key in list(trans_dict.keys()):
             loss_dict[key] = trans_dict[key] + zero_dict[key]
-
+        
         self.generator_optimizer.zero_grad()
         total_loss.backward()
         grad = torch.nn.utils.clip_grad_norm(self.generator.parameters(), self.args.max_gradient_norm)
         loss_dict['grad'] = grad
         self.generator_optimizer.step()
-        
+
         return total_loss, loss_dict
 
     def get_loss(self, 
@@ -661,7 +682,7 @@ class TrainWrapper(TrainWrapperBaseClass):
             raise ValueError
 
         return total_loss, loss_dict
-    
+
     def infer_on_audio(self, aud_fn, initial_pose=None, norm_stats=None, **kwargs):
         '''
         initial_pose: (B, C, T)

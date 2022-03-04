@@ -19,9 +19,6 @@ class Generator(nn.Module):
     ):
         super(Generator, self).__init__()
 
-        
-
-        
         self.cell = AudioPoseEncoderRNN(
             C_in=in_dim,
             hidden_size=hidden_dim,

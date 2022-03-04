@@ -1,10 +1,4 @@
-import math
-from librosa.core import audio
 import numpy as np
-import python_speech_features
-from scipy.io import wavfile
-from scipy import signal
-import math
 import librosa
 
 def load_wav(audio_fn, sr = 16000):
@@ -34,7 +28,6 @@ def get_mfcc(audio_fn, eps=1e-6, fps=25, sr=16000, n_mfcc=64, win_size=None):
     
     return C
     
-
 def get_melspec(audio_fn, eps=1e-6, fps = 25, sr=16000, n_mels=64):
     y, sr = load_wav(audio_fn=audio_fn, sr=sr)
     
@@ -55,13 +48,15 @@ def get_melspec(audio_fn, eps=1e-6, fps = 25, sr=16000, n_mels=64):
     C = mask * eps + (1-mask) * C
 
     C = np.log(C)
+    #wierd error may occur here
+    assert not (np.isnan(C).any()), audio_fn
     if C.shape[0] == n_mels:
         C = C.transpose(1, 0)
 
     return C 
 
 if __name__ == '__main__':
-    audio_fn = 'sample_audio/jon.wav'
+    audio_fn = '../../pose_dataset/videos/Keller_Rinaudo/clips/73rUjrow5pI/wavfiles/clip000004.wav'
     y, sr = load_wav(audio_fn=audio_fn, sr=16000)
     print(y.shape, sr)
     mel_spec = get_melspec(audio_fn)

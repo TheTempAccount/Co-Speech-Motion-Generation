@@ -1,8 +1,12 @@
-from os import stat_result
-from typing import ForwardRef
+import os
+import sys
+sys.path.append(os.getcwd())
+
 import torch
 import torch.nn as nn
-from torch.nn.modules import rnn
+import numpy as np
+from nets.graph_definition import *
+
 
 def get_log(x):
     log=0
@@ -195,7 +199,140 @@ class UNet2D(nn.Module):
         super(UNet2D, self).__init__()
         raise NotImplementedError('2D Unet并不自然')
 
+class GraphConvNormRelu(nn.Module):
+    def __init__(self,
+        C_in,
+        C_out,
+        A,#adjacent matrix (num_parts, V, V)
+        residual,
+        local_bn = False,
+        kernel_size=None,#时域上的卷积
+        share_weights=False
+    ) -> None:
+        super().__init__()
+        self.share_weights = share_weights
 
+        if isinstance(A, np.ndarray):
+            A = torch.from_numpy(A).to(torch.float32)
+        self.register_buffer("A", A)
+
+        if share_weights:
+            print("using sharing weights graph")
+            print("adjacent matrix order: self, hand, arm, body")
+            print("sharing weights in the hand and arm graph")
+
+        self.weights = nn.Parameter(torch.ones_like(A).to(torch.float32), requires_grad=True)
+
+        self.num_joints = A.shape[1]
+        self.num_parts = A.shape[0]
+        self.residual = residual
+        self.C_in = C_in
+        self.C_out = C_out
+        self.local_bn = local_bn
+
+        self.conv_list = nn.ModuleList([])
+        for i in range(self.num_parts):
+            self.conv_list.append(nn.Conv2d(
+                in_channels=C_in, 
+                out_channels=C_out,
+                kernel_size=1,
+                padding=0,
+                stride=1
+            ))
+
+        if self.local_bn:#每个joint的特征分别进行BN
+            self.bn1 = nn.BatchNorm1d(C_out * self.num_joints)
+        else:
+            self.bn1 = nn.BatchNorm2d(C_out)
+
+        self.relu = nn.ReLU()
+
+        if kernel_size is not None:
+            self.temporal_conv = ConvNormRelu(
+                in_channels=C_out,
+                out_channels=C_out,
+                type='2d',
+                kernel_size=(kernel_size, 1),
+                stride=1,
+                padding=((kernel_size-1)//2, 0)
+            )
+        else:
+            self.temporal_conv = nn.Identity()
+
+        if self.residual:
+            if C_in!=C_out:
+                self.shortcut = nn.Conv2d(
+                    in_channels=C_in,
+                    out_channels=C_out,
+                    kernel_size=1,
+                    stride=1,
+                    padding=0
+                )
+            else:
+                self.shortcut = nn.Identity()
+
+    def forward(self, x):
+        '''
+        x: (B, D, T, V)
+        '''
+        B, D, T, V = x.shape
+
+        if self.residual:
+            residual = self.shortcut(x)
+
+        if not self.share_weights:
+            A = self.A * self.weights
+        else:
+            weights = self.weights.clone()
+            #hand
+            for i in range(len(left_hand_edge_list)):
+                left_edge = left_hand_edge_list[i]
+                right_edge = right_hand_edge_list[i]
+                for j in range(len(left_edge)-1):
+                    left_node_1, left_node_2 = left_edge[j], left_edge[j+1]
+                    right_node_1, right_node_2 = right_edge[j], right_edge[j+1]
+                    weights[1][right_node_1, right_node_2] = self.weights[1][left_node_1][left_node_2]
+                    weights[1][right_node_2, right_node_1] = self.weights[1][left_node_2, left_node_1]
+                    
+            #arm
+            for i in range(len(left_arm_edge_list)):
+                left_edge = left_arm_edge_list[i]
+                right_edge = right_arm_edge_list[i]
+                for j in range(len(left_edge)-1):
+                    left_node_1, left_node_2 = left_edge[j], left_edge[j+1]
+                    right_node_1, right_node_2 = right_edge[j], right_edge[j+1]
+                    weights[2][right_node_1, right_node_2] = self.weights[2][left_node_1][left_node_2]
+                    weights[2][right_node_2, right_node_1] = self.weights[2][left_node_2, left_node_1]
+            
+            A = self.A * weights
+
+        x = x.contiguous().view(B*self.C_in*T, self.num_joints)#(B*D*T, V)
+        x_conved = 0
+
+        #这一步图卷积的操作相当于对每个节点，将相邻节点的特征加权求和
+        for i in range(self.num_parts):
+            A_part = A[i] #(V, V)
+            x_conved_i = torch.matmul(x, A_part)#(N, V)
+            x_conved_i = x_conved_i.view(B, self.C_in, T, self.num_joints)
+
+            x_conved_i = self.conv_list[i](x_conved_i) #(B, C_out, T, V)
+            x_conved += x_conved_i #（B, C_out, T, V)
+
+        #是否每个节点各自进行bn，注意和数据的norm方式保持一致，如果是用新的normalize的方法的话，则不需要local bn
+        if self.local_bn:
+            x_conved = x_conved.permute(0, 1, 3, 2).contiguous().view(B, self.C_out*self.num_joints, T)
+            x_conved = self.bn1(x_conved)
+            x_conved = x_conved.contiguous().view(B, self.C_out, self.num_joints, T).permute(0, 1, 3, 2)
+        else:
+            x_conved = self.bn1(x_conved)
+
+        x_conved = self.relu(x_conved)
+
+        x_conved = self.temporal_conv(x_conved)#(B, C_out, T, V)
+        if self.residual:
+            x_conved += residual
+
+        return x_conved
 
 class AudioPoseEncoder1D(nn.Module):
     '''
@@ -280,7 +417,52 @@ class AudioPoseEncoderRNN(nn.Module):
         x = x.permute(0, 2, 1)
         
         return x 
+
+class AudioPoseEncoderGraph(nn.Module):
+    '''
+    (B, C, T)->(B, 2, V, T)->(B, 2, T, V)->(B, D, T, V)
+    '''
+    def __init__(self,
+        layers_config,#理应是(C_in, C_out, kernel_size)的list
+        A,#adjacent matrix (num_parts, V, V)
+        residual,
+        local_bn = False,
+        share_weights = False
+    ) -> None:
+        super().__init__()       
+        self.A = A
+        self.num_joints = A.shape[1]
+        self.num_parts = A.shape[0]
+        self.C_in = layers_config[0][0]
+        self.C_out = layers_config[-1][1]
+
+        self.conv_layers = nn.ModuleList([
+            GraphConvNormRelu(
+                C_in=c_in,
+                C_out=c_out,
+                A = self.A,
+                residual=residual,
+                local_bn=local_bn,
+                kernel_size=k,
+                share_weights=share_weights
+            ) for (c_in, c_out, k) in layers_config
+        ])
         
+        self.conv_layers = nn.Sequential(*self.conv_layers)
+
+    def forward(self, x):
+        '''
+        x: (B, C, T), C应该是num_joints*D
+        output: (B, D, T, V)
+        '''
+        B, C, T = x.shape
+        x = x.view(B, self.num_joints, self.C_in, T) #(B, V, D, T)，D：每个joint的特征维度，注意这里V在前面
+        x = x.permute(0, 2, 3, 1)#(B, D, T, V)
+        assert x.shape[1] == self.C_in
+
+        x_conved = self.conv_layers(x)
+
+        return x_conved
 
 
 class SeqEncoder2D(nn.Module):
@@ -464,6 +646,93 @@ class SeqEncoderRNN(nn.Module):
         assert out.shape[0] == B
         return out
 
+class SeqEncoderGraph(nn.Module):
+    def __init__(self,
+        embedding_size,#整个graph的embedding size
+        layer_configs,#输出的是每个节点的embedding
+        residual,
+        local_bn,
+        A,
+        T,
+        share_weights=False
+    ) -> None:
+        super().__init__()
+
+        self.C_in = layer_configs[0][0]
+        self.C_out = embedding_size
+
+        self.num_joints = A.shape[1]
+        
+        #首先是一系列的图卷积操作，调整维度
+        self.graph_encoder = AudioPoseEncoderGraph(
+            layers_config=layer_configs,
+            A = A,
+            residual = residual,
+            local_bn = local_bn,
+            share_weights = share_weights
+        )
+
+        cur_C = layer_configs[-1][1]
+        self.spatial_pool = ConvNormRelu(
+            in_channels=cur_C,
+            out_channels=cur_C,
+            type='2d',
+            kernel_size=(1, self.num_joints),
+            stride=(1, 1),
+            padding=(0, 0)
+        )
+
+        temporal_pool = nn.ModuleList([])
+        cur_H = T
+        num_layers = 0
+        self.temporal_conv_info = []
+        while cur_C < self.C_out or cur_H > 1:
+            self.temporal_conv_info.append(cur_C)
+            #可能会导致这里的层次很多, 
+            ks = [3, 1]
+            st = [1, 1]
+    
+            if cur_H>1:
+                if cur_H>4:
+                    ks[0] = 4
+                    st[0] = 2
+                else:
+                    ks[0] = cur_H
+                    st[0] = cur_H
+
+            temporal_pool.append(ConvNormRelu(
+                in_channels=cur_C,
+                out_channels=min(self.C_out, cur_C*2),
+                type='2d',
+                kernel_size=tuple(ks),
+                stride=tuple(st)                
+            ))
+            cur_C = min(cur_C*2, self.C_out)
+
+            if cur_H>1:
+                if cur_H>4:
+                    cur_H //= 2
+                else: 
+                    cur_H=1
+
+            num_layers += 1
+        
+        self.temporal_pool = nn.Sequential(*temporal_pool)
+        print("graph seq encoder info: temporal pool:", self.temporal_conv_info)
+        self.num_layers = num_layers
+        #need fc?
+            
+    def forward(self, x):
+        '''
+        x: (B, C, T)
+        '''
+        B, C, T = x.shape
+        x = self.graph_encoder(x)
+        x = self.spatial_pool(x)
+        x = self.temporal_pool(x)
+        x = x.view(B, self.C_out)
+
+        return x
 
 
 class SeqDecoder2D(nn.Module):
@@ -543,8 +812,6 @@ class SeqDecoderRNN(nn.Module):
     '''
     使用RNN的seq的seq decoder
     (B, D)->(B, C_out, T)
-    TODO:FC-LSTM-FC?,已知的是Audio2Body有严重的抖动
-    TODO: 参考TriCon的做法
     '''
     def __init__(self,
         hidden_size,
@@ -565,9 +832,6 @@ class SeqDecoderRNN(nn.Module):
         self.fc = nn.Linear(hidden_size, C_out)
 
     def forward(self, hidden, frame_0):
-        
-        
-        
         frame_0 = frame_0.permute(0, 2, 1)
         dec_input = frame_0
         outputs = []
@@ -579,16 +843,49 @@ class SeqDecoderRNN(nn.Module):
         output = torch.cat(outputs, dim=1)
         return output.permute(0, 2, 1)
 
-
-
-
 class SeqTranslator2D(nn.Module):
     '''
-    (B, C, T)->(B, 1, C, T)-> ... -> (B, 1, C_out, T)
+    (B, C, T)->(B, 1, C, T)-> ... -> (B, 1, C_out, T_out)
     '''
-    def __init__(self):
+    def __init__(self,
+        C_in = 64,
+        C_out = 108,
+        T_in = 75,
+        T_out = 25,
+        residual = True
+    ):
         super(SeqTranslator2D, self).__init__()
-        raise NotImplementedError('2D 卷积的Seq translator不自然')
+        print("Warning: hard coded")
+        self.C_in = C_in
+        self.C_out = C_out
+        self.T_in = T_in
+        self.T_out = T_out
+        self.residual = residual
+
+        self.conv_layers = nn.Sequential(
+            ConvNormRelu(1, 32, '2d', kernel_size=5, stride=1),
+            ConvNormRelu(32, 32, '2d', kernel_size=5, stride=1, residual=self.residual),
+            ConvNormRelu(32, 32, '2d', kernel_size=5, stride=1, residual=self.residual),
+
+            ConvNormRelu(32, 64, '2d', kernel_size=5, stride=(4, 3)),
+            ConvNormRelu(64, 64, '2d', kernel_size=5, stride=1, residual=self.residual),
+            ConvNormRelu(64, 64, '2d', kernel_size=5, stride=1, residual=self.residual),
+
+            ConvNormRelu(64, 128, '2d', kernel_size=5, stride=(4, 1)),
+            ConvNormRelu(128, 108, '2d', kernel_size=3, stride=(4, 1)),
+            ConvNormRelu(108, 108, '2d', kernel_size=(1,3), stride=1, residual=self.residual),
+            
+            ConvNormRelu(108, 108, '2d', kernel_size=(1,3), stride=1, residual=self.residual),
+            ConvNormRelu(108, 108, '2d', kernel_size=(1,3), stride=1),
+        )
+    
+    def forward(self, x):
+        assert len(x.shape)==3 and x.shape[1] == self.C_in and x.shape[2] == self.T_in
+        x = x.view(x.shape[0], 1, x.shape[1], x.shape[2])
+        x = self.conv_layers(x)
+        x = x.squeeze(2)
+        return x
+
 
 class SeqTranslator1D(nn.Module):
     '''
@@ -712,19 +1009,13 @@ class ResBlock(nn.Module):
         return self.layers(inputs)+self.shortcut_layer(inputs)
 
 if __name__ == '__main__':
-    
-    
     import numpy as np
-    random_C = np.random.randint(100, 1000)
-    print(random_C)
-    test_model = SeqTranslatorRNN(
-        C_in=32, 
-        C_out=108,
-        hidden_size=64,
-        num_layers=1,
-        rnn_cell='gru'
+    import os
+    import sys
+    
+    test_model = SeqTranslator2D(
     )
-    dummy_input = torch.randn([10, 32, 25])
-    dummy_frame_0 = torch.randn([10, 108, 1])
-    output = test_model(dummy_input, dummy_frame_0)
+
+    input = torch.randn((64, 64, 75))
+    output = test_model(input)
     print(output.shape)
