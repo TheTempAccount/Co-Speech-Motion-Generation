@@ -1,6 +1,6 @@
 # Free-form Body Motion Generation from Speech (freeMo)
 
-The repo for our work "Free-form Body Motion Generation from Speech".
+The repo for our work "Free-form Body Motion Generation from Speech" (paper)[http://arxiv.org/abs/2203.02291].
 
 ### Video Demo
 [![](https://res.cloudinary.com/marcomontalbano/image/upload/v1639640143/video_to_markdown/images/youtube--Wb5VYqKX_x0-c05b58ac6eb4c4700831b2b3070cd403.jpg)](https://youtu.be/Wb5VYqKX_x0 "")

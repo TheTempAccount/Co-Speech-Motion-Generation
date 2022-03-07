@@ -24,7 +24,7 @@ with open(res_fn, 'r') as f:
     pred_res = np.array(json.load(f))
 
 print('making video')
-from visualise.draw_utils import *
+from src.visualise.draw_utils import *
 pred_res = smooth(pred_res)
 
 for index in sample_index:
