@@ -388,7 +388,7 @@ class AudioPoseEncoder2D(nn.Module):
     (B, C, T) -> (B, 1, C, T) -> ... -> (B, C_out, T)
     '''
     def __init__(self):
-        raise NotImplementedError('考虑到输出的T与输入相同，2D的形式不自然')
+        raise NotImplementedError
 
 class AudioPoseEncoderRNN(nn.Module):
     '''
@@ -737,13 +737,10 @@ class SeqEncoderGraph(nn.Module):
 
 class SeqDecoder2D(nn.Module):
     '''
-    2D卷积形式的seq decoder，将一个feature decode成一个sequence，和SeqEncoder系列对应
-    (B, D)->(B, D, 1, 1)->(B, C_out, C, T)->(B, C_out, T)
-    因为输出只有一个维度，所以用2D的卷积不自然
     '''
     def __init__(self):
         super(SeqDecoder2D, self).__init__()
-        raise NotImplementedError('2D 卷积的Seq decoder不自然')
+        raise NotImplementedError
 
 class SeqDecoder1D(nn.Module):
     '''
