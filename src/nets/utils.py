@@ -14,7 +14,7 @@ def denormalize(kps, data_mean, data_std):
     return (kps * data_std) + data_mean
 
 def parse_audio(textgrid_file):
-    
+    '''a demo implementation'''
     words=['but', 'as', 'to', 'that', 'with', 'of', 'the', 'and', 'or', 'not', 'which', 'what', 'this', 'for', 'because', 'if', 'so', 'just', 'about', 'like', 'by', 'how', 'from', 'whats', 'now', 'very', 'that', 'also', 'actually', 'who', 'then', 'well', 'where', 'even', 'today', 'between', 'than', 'when']
     txt=tg.TextGrid.fromFile(textgrid_file)
     

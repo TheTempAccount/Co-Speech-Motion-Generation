@@ -1,12 +1,5 @@
 from __future__ import absolute_import
 
-import math
-import os
-import random
-import sys
-
-import time
-import argparse
 import numpy as np
 from .consts import checker_stats
 
@@ -254,7 +247,10 @@ def finger_velocity(keypoints, confs, thres_list=[0.08, 0.08, 0.08, 0.08], floor
 
 
 def auto_label(bat, bat_confs, speaker):
-    
+    '''
+    bat: [50, 108]
+    bat_confs: [50, 108]
+    '''
     
     positive = 0
     negative = 0
@@ -308,14 +304,14 @@ def auto_label(bat, bat_confs, speaker):
     else:
         positive_thres = 3
         negative_thres = 2
-
+   
+    #print(speaker)
+    #print(positive_thres, negative_thres)
     if positive > positive_thres: 
         finnal_label = 1
     elif negative > negative_thres: 
         finnal_label = 0
     else:
         finnal_label = -1
-
-
 
     return finnal_label

@@ -1,0 +1,65 @@
+{
+    "Data": {
+      "data_root": "/home/jovyan/pose_dataset/videos",
+      "using_2D_data": true,
+      "seq_len": 128,
+      "pose":{
+        "normalization": true,
+        "norm_method": "new",
+        "augmentation": false,
+        "generate_length": 128,
+        "pre_pose_length": 0,
+        "pose_dim": 108
+      },
+
+      "aud":{
+        "feat_method": "mfcc",
+        "aud_feat_dim": 64,
+        "aud_feat_win_size": null,
+        "context_info": false
+      }
+    },
+    "Model": {
+        "model_name": "Audio2Gestures",
+        "hidden_size": 32,
+        "audio_hidden_size": 16,
+        "pose_hidden_size": 16,
+        "with_mapping_net": true,
+        "dropout": 0
+    },
+    "DataLoader":{
+        "batch_size": 32,
+        "num_workers": 0
+    },
+    "Train": {
+      "epochs": 100,
+      "with_code_constrain": true,
+      "with_cyc": true,
+      "with_ds": true,
+      "with_translation": false,
+      "with_audio_share_vae": true,
+      "with_motion_share_vae": true,
+      "with_motion_spec_vae": true,
+      "with_mapping_net_vae": true,
+      "using_mspec_stat": true,
+      "learning_rate": {
+        "generator_learning_rate": 1e-4,
+        "discriminator_learning_rate": 1e-4
+      },
+      "weights": {
+        "lambda_kl": 1e-3,
+        "lambda_pose": 10,
+        "lambda_speed": 10,
+        "tolerance": 0.02,
+        "lambda_xspeed": 20,
+        "lambda_code": 0.1,
+        "lambda_cyc": 0.1,
+        "lambda_ds": 0.1
+      }
+    },
+    "Log": {
+        "save_every": 5,
+        "print_every": 100
+    }
+  }
+  

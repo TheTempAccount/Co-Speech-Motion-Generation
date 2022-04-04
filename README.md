@@ -2,40 +2,46 @@
 
 The repo for our work "Free-form Body Motion Generation from Speech" [paper](http://arxiv.org/abs/2203.02291).
 
+- [x] code 
+- [x] data preparation (partially)
+
 ### Video Demo
 [![](https://res.cloudinary.com/marcomontalbano/image/upload/v1639640143/video_to_markdown/images/youtube--Wb5VYqKX_x0-c05b58ac6eb4c4700831b2b3070cd403.jpg)](https://youtu.be/Wb5VYqKX_x0 "")
 
-### Directory Structure
+### Data & Pretrained model
+Avaliable through [Baidu Yun](https://pan.baidu.com/s/18aeNlFuUNHbavlJFeSMn-Q) 提取码: 1vji
 
-    |--src //source code
-    |   |--backup //A runnable implementation of our model
-    |   |
-    |   |--repro_nets //other baseline models will be updated soon
-    |   |      |--freeMo_paper.py //same model structure as backup
-    |   |      |--audio2body.py //Audio to Body Dynamics
-    |   |      |--speech2gesture.py //Speech2Gesture & SpeechDrivenTemplates
-    |   |
-    |   |--nets //Some modifications to *repro_nets* for further experiments
-    |   |   |--freeMo_old.py //Similar macro structure as backup, with some details are different
-    |   |   |--freeMo.py //Some different design choices to freeMo_old
-    |   |   ...
-    |   |
-    |   |--visualise 
-    |   |--data_utils
-    |   |--scripts //train.py & infer.py
-    |   |--trainer //args and trainer
+Unzip everything in *pose_dataset*, then change the *Data.data_root* in src/config/*.json. You should be seeing directory structure like this:
 
-- [x] code 
-- [ ] data preparation
+    pose_dataset
+    |-videos
+    |   |-Speaker_A
+    |   |-Speaker_B
+    |   |-...
+    |   |-test_audios
+    |-ckpt
+
+The rest of the data will be updated after I finish checking the annotations.
 
 ### Inference
 
-    python src/backup/generate_on_audio.py --model_name test --model_path pretrained_models/ckpt-48.pt --initial_pose sample_initial_pose/bill_initial.npy --audio_path sample_audio/clip000040_TWeBl1yQ1oI.wav --textgrid_path sample_audio/clip000040_TWeBl1yQ1oI.TextGrid --audio_decoding --normalization --noise_size 512 --sample_index 0 10 20
+    cd src
+    bash infer.sh  \
+            pose_dataset/ckpt/ckpt-99.pth \
+            pose_dataset/ckpt/freeMo.json \
+            <post_fix> \
+            <speaker_name>
 
-The result will be different every time you run the script.
-The results will be saved in "results/[model_name]", including the json file of 64 randomly generated motion sequences and the visualized videos. 
+The results will be saved as "pose_dataset/videos/test_audios/<speaker_name>/*_<post_fix>.json", including the json file of 64 randomly generated motion sequences for every audio. 
 
-For explanation of the flags, see [here](src/backup/).
+If you want to visualise the results, run
+
+    bash visualise/visualise_all.sh <speaker_name> <post_fix>
+
+Remember to change the file path in all files.
 
 ### Training
-The *train.sh* will be usable once I upload the processed data . You can also modify the code to use publicly avaliable gesture dataset.
+    
+    bash train.sh
+
+If you have any problem, please let me know.

@@ -1,0 +1,99 @@
+{
+    "Data": {
+      "data_root": "/home/jovyan/pose_dataset/videos",
+
+      "pose":{
+        "normalization": true,
+        "norm_method": "new",
+        "augmentation": false,
+        "generate_length": 25,
+        "pre_pose_length": 25,
+        "pose_dim": 108
+      },
+
+      "aud":{
+        "feat_method": "mfcc",
+        "aud_feat_dim": 64,
+        "aud_feat_win_size": null,
+        "context_info": false
+      }
+    },
+    "Model": {
+        "model_name": "freeMo",
+        "operation_kernel": "rnn",
+        "interaction": "concat",
+        "rnn_cell": "gru",
+        "T_layer_norm": true,
+        "bidirectional": true,
+        "residual": true,
+
+        "encoder": {
+            "embed_dim": 1024,
+            "content_dim": 512,
+            "noise_dim": 256,
+            "seq_enc_hidden_size": 1024,
+            "seq_enc_num_layers": 1,
+            "style_layer_norm": false
+        },
+
+        "decoder": {
+            "seq_dec_hidden_size": 1024,
+            "seq_dec_num_layers": 1,
+            "decoder_type": "v2"
+        },
+
+        "latent_encoder": {
+            "latent_enc_fc_size": 1024,
+            "latent_enc_num_layers": 3
+        },
+
+        "latent_decoder": {
+            "latent_dec_num_layers": 3
+        },
+
+        "audio_translator": {
+            "aud_kernel_size": 7,
+            "aud_decoding": true,
+            "aud_version": "v1"
+        },
+
+        "graph": {
+            "local_bn": false,
+            "graph_type": "None",
+            "share_weights": false
+        }
+    },
+    "DataLoader":{
+        "batch_size": 64,
+        "num_workers": 0
+    },
+    "Train": {
+      "epochs": 100,
+      "max_gradient_norm": 5,
+      "recon_input": true,
+      "learning_rate": {
+        "generator_learning_rate": 1e-4,
+        "discriminator_learning_rate": 1e-4
+      },
+      "weights": {
+        "kl_tolerance": 0.02,
+        "velocity_length": 8,
+        "keypoint_loss_weight": 1,
+        "recon_input_weight": 1,
+        "kl_loss_weight": 0.001,
+        "kl_start_weight": 1e-5,
+        "kl_decay_rate": 0.99995,
+        "vel_loss_weight": 1,
+        "vel_start_weight": 1e-5,
+        "vel_decay_rate": 0.99995,
+        "r_loss_weight": 1,
+        "zero_loss_weight": 0,
+        "gan_loss_weight": 1
+      }
+    },
+    "Log": {
+        "save_every": 5,
+        "print_every": 100
+    }
+  }
+  

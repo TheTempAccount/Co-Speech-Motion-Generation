@@ -2,6 +2,8 @@
 给出body graph的定义。我们肢体部分使用12个点，手掌使用21个点，总共54个点。分成三个部分：左右手、左右手臂、躯干
 逐步添加graph的定义：
 body graph -> 相似部位共享权重 -> 类邻接矩阵
+
+actually this is for my FYP
 '''
 import numpy as np
 
@@ -66,10 +68,12 @@ self_graph = np.eye(num_joints, num_joints)
 hand_graph = left_hand_graph + right_hand_graph
 arm_graph = left_arm_graph + right_arm_graph
 whole_graph = ((hand_graph + arm_graph + body_graph) != 0).astype(int)
+complete_graph = np.ones_like(whole_graph) - self_graph
 
 hand_class_graph = construct_edges(hand_jump_edge_list)
 arm_class_graph = construct_edges(arm_jump_edge_list)
 
 if __name__ == "__main__":
-    print(np.stack([self_graph, hand_graph, arm_graph, body_graph, hand_class_graph, arm_class_graph]).shape)
+    # print(np.stack([self_graph, hand_graph, arm_graph, body_graph, hand_class_graph, arm_class_graph]).shape)
     # print(arm_jump_edge_list)
+    print(np.stack([self_graph, complete_graph]))

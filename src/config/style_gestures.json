@@ -1,0 +1,92 @@
+{
+  "Dir": {
+    "data_root": "data/GENEA/processed",
+    "log_root": "results/GENEA"
+  },
+  "Glow": {
+    "hidden_channels": 512,
+    "K": 16,
+    "actnorm_scale": 1.0,
+    "flow_permutation": "invconv",
+    "flow_coupling": "affine",
+    "network_model": "LSTM",
+    "num_layers": 2,
+    "LU_decomposed": true,
+    "distribution": "normal"
+  },
+  "Model": {
+    "model_name": "StyleGestures"
+  },
+  "Data": {
+    "framerate": 25,
+    "seqlen": 5,
+    "n_lookahead": 25,
+    "dropout": 0.4,
+
+    "data_root": "/home/jovyan/pose_dataset/videos",
+    "pose":{
+      "normalization": true,
+      "norm_method": "new",
+      "augmentation": false,
+      "generate_length": 25,
+      "pre_pose_length": 25,
+      "pose_dim": 108
+    },
+
+    "aud":{
+      "feat_method": "mfcc",
+      "aud_feat_dim": 64,
+      "aud_feat_win_size": null,
+      "context_info": true
+    }
+  },
+  "Optim": {
+    "name": "adam",
+    "args": {
+      "lr": 0.0015,
+      "betas": [
+        0.9,
+        0.999
+      ],
+      "eps": 1e-08
+    },
+    "Schedule": {
+      "name": "noam_learning_rate_decay",
+      "args": {
+        "warmup_steps": 3000,
+        "minimum": 0.00015
+      }
+    }
+  },
+  "Device": {
+    "glow": [
+      "cuda:0"
+    ],
+    "data": "cuda:0"
+  },
+  "Train": {
+    "epochs": 100,
+    "batch_size": 80,
+    "num_batches": 80000,
+    "max_grad_clip": 5,
+    "max_grad_norm": 100,
+    "max_checkpoints": 4,
+    "checkpoints_gap": 40000,
+    "num_plot_samples": 1,
+    "scalar_log_gap": 50,
+    "validation_log_gap": 500,
+    "plot_gap": 40000,
+    "warm_start": ""
+  },
+  "Infer": {
+    "pre_trained": ""
+  },
+  "DataLoader":{
+    "batch_size": 64,
+    "num_workers": 0
+  },
+  "Log": {
+    "save_every": 5,
+    "print_every": 100
+  }
+}

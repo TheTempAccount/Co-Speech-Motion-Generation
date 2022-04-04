@@ -1,0 +1,13 @@
+python /home/jovyan/Co-Speech-Motion-Generation/src/scripts/train.py --exp_name StyleGestures \
+                        --data_root /home/jovyan/pose_dataset/videos \
+                        --speakers Bill_Gates Dan_Ariely daniel_susskind Keller_Rinaudo \
+                        --model_name StyleGestures \
+                        --epochs 50 \
+                        --save_every 2  \
+                        --print_every 100 \
+                        --normalization \
+                        --norm_method new \
+                        --save_dir experiments \
+                        --shell_cmd /home/jovyan/Co-Speech-Motion-Generation/src/job.yaml \
+                        --context_info \
+                        --feat_method mfcc

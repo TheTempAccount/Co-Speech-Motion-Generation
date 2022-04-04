@@ -16,10 +16,11 @@ from functools import partial
 from multiprocessing import Pool
 
 
-def cvt25(our_poses):
+def cvt25(our_poses, gt_poses=None):
     seq_len = our_poses.shape[0]
-    gt_poses = np.zeros([seq_len, 135*2])
-    stats = (100, np.array([694.51276396, 319.63906205]))
+    if gt_poses is None:
+        gt_poses = np.zeros([seq_len, 135*2])
+    stats = (80, np.array([694.51276396, 319.63906205]))
     length = min(our_poses.shape[0], gt_poses.shape[0])
     our_poses = our_poses[:length, :]
     gt_poses = gt_poses[:length, :]
@@ -30,7 +31,7 @@ def cvt25(our_poses):
         gt_poses[:, [1, 2, 3, 4, 5, 6, 7], :] = our_poses[:, 0:7, :]
         gt_poses[:, 25:25+21+21, :] = our_poses[:, 7:, :]
     else:
-        gt_poses[:, [0,1, 2, 3, 4, 5, 6, 7,15,16,17,18], :] = our_poses[:, 0:12, :]
+        gt_poses[:, [1, 2, 3, 4, 5, 6, 7], :] = our_poses[:, 1:8, :]
         gt_poses[:, 25:25+21+21, :] = our_poses[:, 12:, :]
     
     gt_poses[:, :, 0] = gt_poses[:, :, 0] * stats[0] + stats[1][0]
@@ -115,12 +116,14 @@ def draw_openpose_npy(resize_h, resize_w, crop_h, crop_w, original_h,
 
     # pbar = tqdm(total = len(keypoints_npy), ncols=50)
     num_process = int(os.cpu_count()/2)
-    with tqdm(total = len(keypoints_npy), ncols=50) as pbar:
-        with Pool(processes=num_process) as pool:
+    # num_process = 4
+    with Pool(processes=num_process) as pool:
+        with tqdm(total = len(keypoints_npy), ncols=50) as pbar:
             for v in pool.map(draw_img, keypoints_npy):
                 assert v.shape[0] == h and v.shape[1] == w, v.shape
                 outputs.append(v)
-                pbar.update()
+                pbar.update() # not working
+                
     # for keypoint_npy in tqdm(keypoints_npy, ncols=50):
     #     person_keypoints = np.asarray(keypoint_npy).reshape(-1, 135, 3)[0]
         
@@ -388,13 +391,13 @@ def define_edge_lists(basic_points_only):
 
     
     face_list = [
-        
-        
-        
-        
-        
-        
-        
+        [range(0, 17)],   # face contour
+        [range(17, 22)],  # left eyebrow
+        [range(22, 27)],  # right eyebrow
+        [[28, 31], range(31, 36), [35, 28]],   # nose
+        [[36, 37, 38, 39], [39, 40, 41, 36]],  # left eye
+        [[42, 43, 44, 45], [45, 46, 47, 42]],  # right eye
+        [range(48, 55), [54, 55, 56, 57, 58, 59, 48]],  # mouth
     ]
 
     return pose_edge_list, pose_color_list, hand_edge_list, hand_color_list, \

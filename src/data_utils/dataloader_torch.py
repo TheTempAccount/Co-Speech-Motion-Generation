@@ -6,7 +6,6 @@ import numpy as np
 import json
 from glob import glob
 from data_utils.utils import *
-import random
 from data_utils.checker import auto_label
 from data_utils.augmentation import LimbScaling
 import torch.utils.data as data
@@ -15,7 +14,7 @@ from data_utils.consts import speaker_id
 
 class PoseDataset():
     '''
-    对应于一个segment的数据，对每个视频分段单独创建一个dataset，然后将所有的dataset concat起来。这种还是有必要的，因为segment之间是不连续的
+    creat a dataset for every segment and concat. 
     '''
     def __init__(self, 
                 data_root,
@@ -55,7 +54,7 @@ class PoseDataset():
         self.num_frames = num_frames
         self.num_pre_frames = num_pre_frames
         
-        self.annotations=glob(data_root+'/keypoints/*json')
+        self.annotations=glob(data_root+'/keypoints_new/person_1/*json')
         if len(self.annotations)==0:
             raise FileNotFoundError(data_root+'/keypoints are empty')
         self.annotations=sorted(self.annotations)
@@ -81,7 +80,7 @@ class PoseDataset():
         mean_position = []
         for img_name_ori in self.img_name_list:
             img_name=os.path.splitext(os.path.basename(img_name_ori))[0]
-            annotation_file=os.path.join(self.data_root, 'keypoints', img_name+'.json')
+            annotation_file=os.path.join(self.data_root, 'keypoints_new/person_1/', img_name+'.json')
             if not os.path.isfile(annotation_file):
                 continue
             annotation=json.load(open(annotation_file))['people'][0]
@@ -138,15 +137,19 @@ class PoseDataset():
 
         self.complete_data=np.array(self.complete_data)
 
-        if self.feat_method == 'mel_spec':
-            self.audio_feat = get_melspec(self.audio_fn, fps = self.fps, sr = self.audio_sr, n_mels=self.audio_feat_dim)
-        elif self.feat_method == 'mfcc':
-            self.audio_feat = get_mfcc(self.audio_fn, 
-                                        fps = self.fps, 
-                                        sr = self.audio_sr, 
-                                        n_mfcc=self.audio_feat_dim, 
-                                        win_size=self.audio_feat_win_size
-                                    )
+        if self.audio_feat_win_size is not None:
+            self.audio_feat = get_mfcc_old(self.audio_fn).transpose(1, 0)
+            # print(self.audio_feat.shape)
+        else:
+            if self.feat_method == 'mel_spec':
+                self.audio_feat = get_melspec(self.audio_fn, fps = self.fps, sr = self.audio_sr, n_mels=self.audio_feat_dim)
+            elif self.feat_method == 'mfcc':
+                self.audio_feat = get_mfcc_psf(self.audio_fn, 
+                                            fps = self.fps, 
+                                            sr = self.audio_sr, 
+                                            n_mfcc=self.audio_feat_dim, 
+                                            win_size=self.audio_feat_win_size
+                                        )
 
         if split_trans_zero:
             self.generate_all_trans_frames()
@@ -235,11 +238,13 @@ class PoseDataset():
                         #TODO: not ready
                         start_sec = (index + num_frames) / 25 
                         start_steps = int(start_sec / 0.01) 
+                        # print(self.audio_feat.shape, start_steps)
                         mfcc_feature = self.audio_feat[start_steps:start_steps+100, :]
+                        # print(mfcc_feature.shape)
                         if mfcc_feature.shape[0] != 100:
                             mfcc_feature = np.pad(mfcc_feature, [[0, 100 - mfcc_feature.shape[-1]], [0, 0]], mode='reflect')
                         audio_feat = mfcc_feature
-                else:#提取音频的时候包含历史的和未来的
+                else:#including feature and history
                     if self.audio_feat_win_size is None:
                         audio_feat = self.audio_feat[index:index+seq_len+num_frames, ...]
                         if audio_feat.shape[0] < seq_len+num_frames:
@@ -270,7 +275,7 @@ class PoseDataset():
                     'poses': poses.astype(np.float).transpose(1, 0),
                     'conf': conf.astype(np.float).transpose(1, 0),
                     'aud_feat': audio_feat.astype(np.float).transpose(1, 0),
-                    'speaker': self.speaker
+                    'speaker': speaker_id[self.speaker]
                 }
                 return data_sample
 
@@ -304,6 +309,7 @@ class MultiVidData():
                 split='train', 
                 limbscaling=False, 
                 normalization=False,
+                norm_method='new',
                 split_trans_zero=False,
                 num_frames=25,
                 num_pre_frames=25,
@@ -315,6 +321,7 @@ class MultiVidData():
         self.data_root = data_root
         self.speakers = speakers
         self.split = split
+        self.norm_method=norm_method
         self.normalization = normalization
         self.limbscaling = limbscaling
         self.num_frames=num_frames
@@ -348,7 +355,7 @@ class MultiVidData():
 
                     self.dataset[key]=PoseDataset(
                         data_root=seq_root,
-                        speaker=speaker_id[speaker_name],
+                        speaker=speaker_name,
                         audio_fn=audio_fname,
                         
                         audio_sr=16000,
@@ -376,6 +383,20 @@ class MultiVidData():
         else:
             self.data_mean=None
             self.data_std = None
+
+    def split_res(self):
+        '''
+        check labeling results for trans and zero 
+        '''
+        num_trans_frames = 0
+        num_zero_frames = 0
+
+        for key in list(self.dataset.keys()):
+            num_trans_frames += self.dataset[key].trans_frames.shape[0]
+            num_zero_frames += self.dataset[key].zero_frames.shape[0]
+        
+        print(self.complete_data.shape)
+        print(num_trans_frames, num_zero_frames)
     
     def get_dataset(self):
         self.normalize_stats['mean'] = self.data_mean
@@ -398,28 +419,44 @@ class MultiVidData():
             self.all_dataset = data.ConcatDataset(self.all_dataset_list)
     
     def _normalization_stats(self, complete_data):
-        # old data normalization
-        # data_mean = np.mean(complete_data, axis=0)
-        # data_std = np.std(complete_data, axis=0)
-        # data_std[np.where(data_std==0)] = 1e-9
-        
-        print('warning: using new data normalization, same pretrained models are based on old data normalization')
-        complete_data = complete_data.reshape(complete_data.shape[0], 54, 2).reshape(-1, 2)
-        data_mean = np.mean(complete_data, axis=0)#(2)，理应是(108)
-        data_std = np.std(complete_data, axis=0)
-        data_mean = data_mean.squeeze().reshape(1, 2)
-        data_mean = np.repeat(data_mean, 54, 0)
-        assert data_mean.shape[0] == 54 and data_mean.shape[1] == 2
-        data_mean = data_mean.reshape(-1)
+        if self.norm_method == 'old':
+            print('warning: using old data normalization')
+            data_mean = np.mean(complete_data, axis=0)
+            data_std = np.std(complete_data, axis=0)
+            data_std[np.where(data_std==0)] = 1e-9
+        elif self.norm_method == 'new':
+            print('warning: using new data normalization')
+            complete_data = complete_data.reshape(complete_data.shape[0], 54, 2).reshape(-1, 2)
+            data_mean = np.mean(complete_data, axis=0)#(2)，should be(108)
+            data_std = np.std(complete_data, axis=0)
+            data_mean = data_mean.squeeze().reshape(1, 2)
+            data_mean = np.repeat(data_mean, 54, 0)
+            assert data_mean.shape[0] == 54 and data_mean.shape[1] == 2
+            data_mean = data_mean.reshape(-1)
 
-        data_std = data_std.squeeze().reshape(1, 2)
-        data_std = np.repeat(data_std, 54, 0)
-        assert data_std.shape[0] == 54 and data_std.shape[1] == 2
-        data_std = data_std.reshape(-1)
-        
-        data_std[np.where(data_std==0)] = 1e-9 
+            data_std = data_std.squeeze().reshape(1, 2)
+            data_std = np.repeat(data_std, 54, 0)
+            assert data_std.shape[0] == 54 and data_std.shape[1] == 2
+            data_std = data_std.reshape(-1)
+            
+            data_std[np.where(data_std==0)] = 1e-9 
 
         return data_mean, data_std
 
 if __name__ == '__main__':
-    pass
+    d = MultiVidData(
+        data_root='pose_dataset/videos/', 
+        speakers=['Bill_Gates'], 
+        split='train', 
+        limbscaling=False, 
+        normalization=False,
+        split_trans_zero=True,
+        num_frames=25,
+        num_pre_frames=25,
+        aud_feat_win_size=100,
+        aud_feat_dim=64,
+        feat_method='mel_spec',
+        context_info=False
+    )
+
+    # d.split_res()

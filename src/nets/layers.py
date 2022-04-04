@@ -7,6 +7,7 @@ import torch.nn as nn
 import numpy as np
 from nets.graph_definition import *
 
+#TODO: be aware of the actual netork structures
 
 def get_log(x):
     log=0
@@ -22,7 +23,8 @@ def get_log(x):
 class ConvNormRelu(nn.Module):
     '''
     (B,C_in,H,W) -> (B, C_out, H, W) 
-    存在一些kernel size的选择会导致输出不是H/s
+    there exist some kernel size that makes the result is not H/s
+    #TODO: there might some problems with residual
     '''
     def __init__(self, 
                     in_channels, 
@@ -37,7 +39,7 @@ class ConvNormRelu(nn.Module):
                     groups=1,
                     residual=False):
         '''
-        简单的conv-bn-relu
+        conv-bn-relu
         '''
         super(ConvNormRelu, self).__init__()
         self.residual = residual
@@ -197,16 +199,19 @@ class UNet1D(nn.Module):
 class UNet2D(nn.Module):
     def __init__(self):
         super(UNet2D, self).__init__()
-        raise NotImplementedError('2D Unet并不自然')
+        raise NotImplementedError('2D Unet is wierd')
 
 class GraphConvNormRelu(nn.Module):
+    '''
+    spatial-temporal
+    '''
     def __init__(self,
         C_in,
         C_out,
         A,#adjacent matrix (num_parts, V, V)
         residual,
         local_bn = False,
-        kernel_size=None,#时域上的卷积
+        kernel_size=None,#
         share_weights=False
     ) -> None:
         super().__init__()
@@ -232,6 +237,7 @@ class GraphConvNormRelu(nn.Module):
 
         self.conv_list = nn.ModuleList([])
         for i in range(self.num_parts):
+            #TODO：这里的卷积是non-local的
             self.conv_list.append(nn.Conv2d(
                 in_channels=C_in, 
                 out_channels=C_out,
@@ -309,7 +315,6 @@ class GraphConvNormRelu(nn.Module):
         x = x.contiguous().view(B*self.C_in*T, self.num_joints)#(B*D*T, V)
         x_conved = 0
 
-        #这一步图卷积的操作相当于对每个节点，将相邻节点的特征加权求和
         for i in range(self.num_parts):
             A_part = A[i] #(V, V)
             x_conved_i = torch.matmul(x, A_part)#(N, V)
@@ -318,7 +323,6 @@ class GraphConvNormRelu(nn.Module):
             x_conved_i = self.conv_list[i](x_conved_i) #(B, C_out, T, V)
             x_conved += x_conved_i #（B, C_out, T, V)
 
-        #是否每个节点各自进行bn，注意和数据的norm方式保持一致，如果是用新的normalize的方法的话，则不需要local bn
         if self.local_bn:
             x_conved = x_conved.permute(0, 1, 3, 2).contiguous().view(B, self.C_out*self.num_joints, T)
             x_conved = self.bn1(x_conved)
@@ -336,7 +340,6 @@ class GraphConvNormRelu(nn.Module):
 
 class AudioPoseEncoder1D(nn.Module):
     '''
-    将audio的feat逐步提升
     (B, C, T) -> (B, C*2, T) -> ... -> (B, C_out, T)
     '''
     def __init__(self,
@@ -392,7 +395,6 @@ class AudioPoseEncoder2D(nn.Module):
 
 class AudioPoseEncoderRNN(nn.Module):
     '''
-    RNN形式的encoder，主要改变维度
     (B, C, T)->(B, T, C)->(B, T, C_out)->(B, C_out, T)
     '''
     def __init__(self,
@@ -452,7 +454,7 @@ class AudioPoseEncoderGraph(nn.Module):
 
     def forward(self, x):
         '''
-        x: (B, C, T), C应该是num_joints*D
+        x: (B, C, T), C should be num_joints*D
         output: (B, D, T, V)
         '''
         B, C, T = x.shape
@@ -462,35 +464,41 @@ class AudioPoseEncoderGraph(nn.Module):
 
         x_conved = self.conv_layers(x)
 
+        # x_conved = x_conved.permute(0, 3, 1, 2).contiguous().view(B, self.C_out*self.num_joints, T)#(B, V*C_out, T)
+
         return x_conved
 
 
 class SeqEncoder2D(nn.Module):
     '''
-    seq_encoder, 将一个seq数据encoding成一个vector
-    (B, C, T)->(B, 1, C, T)->(B, 32, C/2, T/2)->...->(B, C_out)
+    seq_encoder, encoding a seq to a vector
+    (B, C, T)->(B, 2, V, T)->(B, 2, T, V) -> (B, 32, )->...->(B, C_out)
     '''
     def __init__(self,
-        C_in,
+        C_in,# should be 2
         T_in,
         C_out,
-        min_layer_num=None
+        num_joints,
+        min_layer_num=None,
+        residual=False
     ):
         super(SeqEncoder2D, self).__init__()
         self.C_in = C_in
         self.C_out = C_out
         self.T_in = T_in
+        self.num_joints = num_joints
 
         conv_layers = nn.ModuleList([])
         conv_layers.append(ConvNormRelu(
-            in_channels=1,
+            in_channels=C_in,
             out_channels=32,
-            type='2d'
+            type='2d',
+            residual=residual
         ))
         
         cur_C = 32
-        cur_H = C_in
-        cur_W = T_in
+        cur_H = T_in
+        cur_W = num_joints
         num_layers = 1
         while (cur_C<C_out) or (cur_H>1) or (cur_W>1):
             ks = [3,3]
@@ -516,7 +524,8 @@ class SeqEncoder2D(nn.Module):
                 out_channels=min(C_out, cur_C*2),
                 type='2d',
                 kernel_size=tuple(ks),
-                stride=tuple(st)                
+                stride=tuple(st),
+                residual=residual               
             ))
             cur_C = min(cur_C*2, C_out)
             if cur_H>1:
@@ -538,7 +547,8 @@ class SeqEncoder2D(nn.Module):
                     out_channels=C_out,
                     type='2d',
                     kernel_size=1,
-                    stride=1
+                    stride=1,
+                    residual=residual
                 ))
                 num_layers += 1
         
@@ -546,16 +556,17 @@ class SeqEncoder2D(nn.Module):
         self.num_layers = num_layers
 
     def forward(self, x):
-        if len(x.shape) == 3:
-            x = x.unsqueeze(1)
+        B, C, T = x.shape
+        x = x.view(B, self.num_joints, self.C_in, T) #(B, V, D, T) V in front
+        x = x.permute(0, 2, 3, 1)#(B, D, T, V)
+        assert x.shape[1] == self.C_in and x.shape[-1] == self.num_joints
+
         x = self.conv_layers(x)
         return x.squeeze()
 
 class SeqEncoder1D(nn.Module):
     '''
-    使用1D卷积的seq encoder
     (B, C, T)->(B, D)
-    仅仅encoding固定长度
     '''
     def __init__(self,
         C_in,
@@ -612,7 +623,6 @@ class SeqEncoder1D(nn.Module):
 
 class SeqEncoderRNN(nn.Module):
     '''
-    基于RNN的encoder，会简单一点
     (B, C, T) -> (B, T, C) -> (B, D)
     LSTM/GRU-FC
     '''
@@ -647,9 +657,11 @@ class SeqEncoderRNN(nn.Module):
         return out
 
 class SeqEncoderGraph(nn.Module):
+    '''
+    '''
     def __init__(self,
-        embedding_size,#整个graph的embedding size
-        layer_configs,#输出的是每个节点的embedding
+        embedding_size,
+        layer_configs,
         residual,
         local_bn,
         A,
@@ -663,7 +675,6 @@ class SeqEncoderGraph(nn.Module):
 
         self.num_joints = A.shape[1]
         
-        #首先是一系列的图卷积操作，调整维度
         self.graph_encoder = AudioPoseEncoderGraph(
             layers_config=layer_configs,
             A = A,
@@ -688,7 +699,6 @@ class SeqEncoderGraph(nn.Module):
         self.temporal_conv_info = []
         while cur_C < self.C_out or cur_H > 1:
             self.temporal_conv_info.append(cur_C)
-            #可能会导致这里的层次很多, 
             ks = [3, 1]
             st = [1, 1]
     
@@ -737,6 +747,7 @@ class SeqEncoderGraph(nn.Module):
 
 class SeqDecoder2D(nn.Module):
     '''
+    (B, D)->(B, D, 1, 1)->(B, C_out, C, T)->(B, C_out, T)
     '''
     def __init__(self):
         super(SeqDecoder2D, self).__init__()
@@ -744,7 +755,6 @@ class SeqDecoder2D(nn.Module):
 
 class SeqDecoder1D(nn.Module):
     '''
-    1D卷积形式的seq decoder，将一个feature vector decode成一个sequence，和SeqEncoder系列对应
     (B, D)->(B, D, 1)->...->(B, C_out, T)
     '''
     def __init__(self,
@@ -807,7 +817,6 @@ class SeqDecoder1D(nn.Module):
 
 class SeqDecoderRNN(nn.Module):
     '''
-    使用RNN的seq的seq decoder
     (B, D)->(B, C_out, T)
     '''
     def __init__(self,
@@ -893,7 +902,8 @@ class SeqTranslator1D(nn.Module):
         C_out,
         kernel_size=None,
         stride=None,
-        min_layers_num=None
+        min_layers_num=None,
+        residual=True
     ):
         super(SeqTranslator1D, self).__init__()
         
@@ -903,7 +913,8 @@ class SeqTranslator1D(nn.Module):
             out_channels=C_out,
             type='1d',
             kernel_size=kernel_size,
-            stride=stride
+            stride=stride,
+            residual=residual
         ))
         self.num_layers=1
         if min_layers_num is not None and self.num_layers<min_layers_num:
@@ -913,7 +924,8 @@ class SeqTranslator1D(nn.Module):
                     out_channels=C_out,
                     type='1d',
                     kernel_size=kernel_size,
-                    stride=stride
+                    stride=stride,
+                    residual=residual
                 ))
                 self.num_layers += 1
         self.conv_layers = nn.Sequential(*conv_layers)
@@ -923,7 +935,6 @@ class SeqTranslator1D(nn.Module):
 
 class SeqTranslatorRNN(nn.Module):
     '''
-    使用RNN的seq decoder
     (B, C, T)->(B, C_out, T)
     LSTM-FC
     '''
@@ -1005,14 +1016,118 @@ class ResBlock(nn.Module):
     def forward(self, inputs):
         return self.layers(inputs)+self.shortcut_layer(inputs)
 
+class AudioEncoder(nn.Module):
+    def __init__(self, channels, padding=3, kernel_size=8, conv_stride=2, conv_pool=None, augmentation=False):
+        super(AudioEncoder, self).__init__()
+        self.in_channels = channels[0]
+        self.augmentation = augmentation
+
+        model = []
+        acti = nn.LeakyReLU(0.2)
+
+        nr_layer = len(channels)-1
+
+        for i in range(nr_layer):
+            if conv_pool is None:
+                model.append(nn.ReflectionPad1d(padding))
+                model.append(nn.Conv1d(channels[i], channels[i+1], kernel_size=kernel_size, stride=conv_stride))
+                model.append(acti)
+            else:
+                model.append(nn.ReflectionPad1d(padding))
+                model.append(nn.Conv1d(channels[i], channels[i+1], kernel_size=kernel_size, stride=conv_stride))
+                model.append(acti)
+                model.append(conv_pool(kernel_size=2, stride=2))
+
+        if self.augmentation:
+            model.append(
+                nn.Conv1d(channels[-1], channels[-1], kernel_size=kernel_size, stride=conv_stride)
+            )
+            model.append(acti)
+
+        self.model = nn.Sequential(*model)
+
+    def forward(self, x):
+        
+        x = x[:, :self.in_channels, :]
+        x = self.model(x)
+        return x
+
+class AudioDecoder(nn.Module):
+    def __init__(self, channels, kernel_size=7):
+        super(AudioDecoder, self).__init__()
+
+        model = []
+        pad = (kernel_size - 1) // 2
+        acti = nn.LeakyReLU(0.2)
+        
+        for i in range(len(channels) - 2):
+            model.append(nn.Upsample(scale_factor=2, mode='nearest'))
+            model.append(nn.ReflectionPad1d(pad))
+            model.append(nn.Conv1d(channels[i], channels[i + 1],
+                                            kernel_size=kernel_size, stride=1))
+            if i == 0 or i == 1:
+                model.append(nn.Dropout(p=0.2))
+            if not i == len(channels) - 2:
+                model.append(acti)          
+        
+        model.append(nn.Upsample(size=25, mode='nearest'))
+        model.append(nn.ReflectionPad1d(pad))
+        model.append(nn.Conv1d(channels[-2], channels[-1],
+                                            kernel_size=kernel_size, stride=1))
+
+        self.model = nn.Sequential(*model)
+
+    def forward(self, x):
+        return self.model(x)
+
+class Audio2Pose(nn.Module):
+    def __init__(self, pose_dim, embed_size, augmentation):
+        super(Audio2Pose, self).__init__()
+        self.pose_dim = pose_dim
+        self.embed_size = embed_size
+        self.augmentation = augmentation
+
+        self.aud_enc = AudioEncoder(channels=[13,64,128,256], padding=2, kernel_size=7, conv_stride=1, conv_pool=nn.AvgPool1d, augmentation = self.augmentation)
+        if self.augmentation:
+            self.aud_dec = AudioDecoder(channels=[512, 256, 128, pose_dim])
+        else:
+            self.aud_dec = AudioDecoder(channels=[256, 256, 128, pose_dim])
+
+        if self.augmentation:
+            self.pose_enc = nn.Sequential(
+                nn.Linear(self.embed_size // 2, 256),
+                nn.LayerNorm(256)
+            )
+
+    def forward(self, audio_feat, dec_input = None):
+        
+        B = audio_feat.shape[0]
+
+        aud_embed = self.aud_enc.forward(audio_feat)
+
+        if self.augmentation:
+            dec_input = dec_input.squeeze(0) 
+            dec_embed = self.pose_enc(dec_input) 
+            dec_embed = dec_embed.unsqueeze(2) 
+            dec_embed = dec_embed.expand(dec_embed.shape[0], dec_embed.shape[1], aud_embed.shape[-1])
+            aud_embed = torch.cat([aud_embed, dec_embed], dim=1) 
+
+        out = self.aud_dec.forward(aud_embed) 
+        return out
+
 if __name__ == '__main__':
     import numpy as np
     import os
     import sys
     
-    test_model = SeqTranslator2D(
+    test_model = SeqEncoder2D(
+        C_in=2,
+        T_in=25,
+        C_out=512,
+        num_joints=54,
     )
+    print(test_model.num_layers)
 
-    input = torch.randn((64, 64, 75))
+    input = torch.randn((64, 108, 25))
     output = test_model(input)
     print(output.shape)

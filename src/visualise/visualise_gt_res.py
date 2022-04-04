@@ -1,15 +1,14 @@
 import os
 import sys
 
-from numpy.lib.npyio import save
 sys.path.append(os.getcwd())
 
 import subprocess
 from glob import glob
 import json
 
-from draw_utils import draw_openpose_npy
-from utils import load_json
+from visualise.draw_utils import draw_openpose_npy
+from visualise.utils import load_json
 from argparse import ArgumentParser
 import numpy as np
 import cv2 as cv
@@ -41,7 +40,7 @@ def main():
 
     crop_h = 720
     crop_w = 1280
-    ims = draw_openpose_npy(crop_h, crop_w, seq)
+    ims = draw_openpose_npy(crop_h, crop_w, crop_h, crop_w, None, None, False, None,  seq)
 
     im_save_dir = os.path.join(save_dir, reference, 'images')
     vid_save_name = os.path.join(save_dir, reference, 'video.avi')

@@ -55,7 +55,7 @@ checker_stats={
         "finger_velocity": [[0.08, 0.08, 0.08, 0.08], [0.06, 0.06, 0.06, 0.06], [0.15, 0.15, 0.15, 0.15]]
     },
 
-    'Dan_Ariely': {
+    'Dan_Ariely': { #(38685, 54804)
         "finger_distance": 0.9,
         "finger_angle": 0.3,
         "finger_offset": [1.5, 1.5],
@@ -65,7 +65,7 @@ checker_stats={
         "negative_thres": 2
     },
 
-    'Bill_Gates': {
+    'Bill_Gates': { #(29734, 43630)
         "finger_distance": 0.9,
         "finger_angle": 0.3,
         "finger_offset": [1.5, 1.5],
@@ -95,7 +95,7 @@ checker_stats={
         "negative_thres": 2
     },
 
-    'daniel_susskind': {
+    'daniel_susskind': { #(21066, 54714)
         "finger_distance": 0.9,
         "finger_angle": 0.3,
         "finger_offset": [1.5, 1.5],
@@ -145,7 +145,7 @@ checker_stats={
         "negative_thres": -1
     },
 
-    'Keller_Rinaudo': { 
+    'Keller_Rinaudo': { #(4011, 10623)
         "finger_distance": 0.9,
         "finger_angle": 0.3,
         "finger_offset": [1.5, 1.5],

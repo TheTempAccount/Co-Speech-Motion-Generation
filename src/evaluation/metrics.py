@@ -1,5 +1,5 @@
 '''
-Warning: metrics are only for reference only, may have limited significance
+Warning: metrics are for reference only, may have limited significance
 '''
 import os
 import sys
