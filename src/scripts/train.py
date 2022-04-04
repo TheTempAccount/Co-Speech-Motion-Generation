@@ -1,6 +1,6 @@
 import os
 import sys
-os.chdir('/home/jovyan/Co-Speech-Motion-Generation/src')
+# os.chdir('/home/jovyan/Co-Speech-Motion-Generation/src')
 sys.path.append(os.getcwd())
 
 from trainer import Trainer
