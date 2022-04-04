@@ -128,7 +128,6 @@ def main():
     torch.cuda.set_device(device)
     
     config = load_JsonConfig(args.config_file)
-    # config.Data.aud.aud_feat_win_size = None
 
     print('init model...')
     generator = init_model(config.Model.model_name, args.model_path, args, config)
