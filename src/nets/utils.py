@@ -8,10 +8,21 @@ def get_parameter_size(model):
     return total_num, trainable_num
 
 def denormalize(kps, data_mean, data_std):
-    
+    '''
+    kps: (B, T, C)
+    '''
     data_std = data_std.reshape(1, 1, -1)
     data_mean = data_mean.reshape(1, 1, -1)
     return (kps * data_std) + data_mean
+
+def normalize(kps, data_mean, data_std):
+    '''
+    kps: (B, T, C)
+    '''
+    data_std = data_std.squeeze().reshape(1, 1, -1)
+    data_mean = data_mean.squeeze().reshape(1, 1, -1)
+
+    return (kps-data_mean) / data_std
 
 def parse_audio(textgrid_file):
     '''a demo implementation'''

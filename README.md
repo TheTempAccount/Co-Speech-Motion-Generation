@@ -24,6 +24,15 @@ Unzip everything in *pose_dataset*, then change the *Data.data_root* in src/conf
 The rest of the data will be updated after I finish checking the annotations.
 
 ### Inference
+Generated motions for an example audio clip:
+
+    bash demo.sh ../sample_audio/clip000040_ozfGHONpdTA.wav ../sample_audio/clip000040_ozfGHONpdTA.TextGrid
+
+Visualise the generated motions:
+
+    bash visualse.sh
+
+Generate motions for a speaker in test_audios:
 
     cd src
     bash infer.sh  \
