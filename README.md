@@ -11,6 +11,8 @@ The repo for our work "Free-form Body Motion Generation from Speech" [paper](htt
 ### Data & Pretrained model
 Avaliable through [Baidu Yun](https://pan.baidu.com/s/18aeNlFuUNHbavlJFeSMn-Q) 提取码: 1vji
 
+[Google Drive](https://drive.google.com/drive/folders/1v8_4agLNM2jmRuSKnflkdbEcKWZkdtka?usp=sharing)
+
 Unzip everything in *pose_dataset*, then change the *Data.data_root* in src/config/*.json. You should be seeing directory structure like this:
 
     pose_dataset
