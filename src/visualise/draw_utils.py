@@ -2,6 +2,7 @@ from tqdm import tqdm
 from scipy.optimize import curve_fit
 
 import os
+os.environ['OMP_NUM_THREADS']=1 #TODO: test
 from glob import glob
 import numpy as np
 import json

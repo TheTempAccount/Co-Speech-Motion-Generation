@@ -86,10 +86,16 @@ class Trainer():
                 self.args,
                 self.config
             )
-        elif self.config.Model.model_name == 's2g':
-            raise NotImplementedError
-        elif self.config.Model.model_name == 'tmpt':
-            raise NotImplementedError
+        elif self.config.Model.model_name == 'S2G':
+            self.generator = S2G_Generator(
+                    self.args,
+                    self.config,
+                )
+        elif self.config.Model.model_name == 'Tmpt':
+            self.generator = S2G_Generator(
+                    self.args,
+                    self.config,
+                )
         elif self.config.Model.model_name == 'tricon':
             raise NotImplementedError
         elif self.config.Model.model_name == 'a2b':

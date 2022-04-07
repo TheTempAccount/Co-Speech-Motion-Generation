@@ -1,7 +1,6 @@
 '''
-need to be updated
+not exactly the same as the official repo but the results are good
 '''
-
 import sys
 import os
 sys.path.append(os.getcwd())
@@ -17,7 +16,7 @@ import math
 from nets import TrainWrapperBaseClass
 from nets.layers import SeqEncoder1D
 from losses import KeypointLoss, L1Loss, KLLoss
-from data_utils.utils import get_melspec
+from data_utils.utils import get_melspec, get_mfcc_psf
 from nets.utils import denormalize
 
 """ from https://github.com/ai4r/Gesture-Generation-from-Trimodal-Context.git """
@@ -221,16 +220,34 @@ class AudioEncoder(nn.Module):
 
 
 class Generator(nn.Module):
-    '''
-    TODO: mel_spec和MFCC，aud_feat的维度设定成了num_frames，但是原版的模型实现里面并不是这样的
-    '''
-    def __init__(self, n_poses, pose_dim, n_pre_poses, use_template=False, template_length=0):
+    def __init__(self, 
+                n_poses, 
+                pose_dim, 
+                n_pre_poses, 
+                use_template=False, 
+                template_length=0,
+                training=False,
+                device = None
+                ):
         super().__init__()
 
         self.use_template = use_template
         self.template_length = template_length
+        self.training = training
+        self.device = device
+
         if self.use_template:
             assert template_length > 0 
+            # self.KLLoss = KLLoss(kl_tolerance=self.config.Train.weights.kl_tolerance).to(self.device)
+            self.pose_encoder = SeqEncoder1D(
+                C_in=pose_dim,
+                C_out=64,
+                T_in=n_poses,
+                
+            )
+            self.mu_fc = nn.Linear(64, template_length)
+            self.var_fc = nn.Linear(64, template_length)
+
 
         self.gen_length = n_poses
 
@@ -250,14 +267,27 @@ class Generator(nn.Module):
         )
         self.final_out = nn.Conv1d(256, pose_dim, 1, 1)
 
-    def forward(self, in_spec, pre_poses, template=None, time_steps = None):
+    def __reparam(self, mu, log_var):
+        std=torch.exp(0.5*log_var)
+        eps=torch.randn_like(std, device=self.device)
+        z=eps*std+mu
+        return z
+
+    def forward(self, in_spec, pre_poses, gt_poses, template=None, time_steps = None):
         if time_steps is not None:
             self.gen_length = time_steps
             
         if self.use_template:
-            if template is None:
+            if self.training:
+                pose_enc = self.pose_encoder(gt_poses.permute(0, 2, 1))
+                mu = self.mu_fc(pose_enc)
+                var = self.var_fc(pose_enc)
+                template = self.__reparam(mu, var)
+
+            elif template is None:
                 template = torch.randn([in_spec.shape[0], self.template_length]).to(in_spec.device)
-        
+        else:
+            template = None
         
         audio_feat_seq = self.audio_encoder(in_spec, time_steps=time_steps)  
         pre_poses = pre_poses.reshape(pre_poses.shape[0], -1)
@@ -273,8 +303,12 @@ class Generator(nn.Module):
         out = self.decoder(feat)
         out = self.final_out(out)
         out = out.transpose(1, 2)  
+        
+        if self.training:
 
-        return out
+            return out, template, mu, var
+        else:
+            return out
 
 
 class Discriminator(nn.Module):
@@ -296,41 +330,29 @@ class Discriminator(nn.Module):
         return out
 
 class TrainWrapper(TrainWrapperBaseClass):
-    def __init__(self, args) -> None:
+    def __init__(self, args, config) -> None:
         self.args = args
+        self.config = config
         self.device = torch.device(self.args.gpu)
+        self.global_step = 0
 
         self.generator = Generator(
-            n_poses = self.args.generate_length,
-            pose_dim = self.args.pose_dim,
-            n_pre_poses = self.args.pre_pose_length,
-            use_template = self.args.use_template,
-            template_length = self.args.template_length
+            n_poses = self.config.Data.pose.generate_length,
+            pose_dim = self.config.Data.pose.pose_dim,
+            n_pre_poses = self.config.Data.pose.pre_pose_length,
+            use_template = self.config.Model.use_template,
+            template_length = self.config.Model.template_length,
+            training=not self.args.infer,
+            device = self.device
         ).to(self.device)
         self.discriminator = Discriminator(
-            pose_dim=self.args.pose_dim
+            pose_dim=self.config.Data.pose.pose_dim
         ).to(self.device)
 
         self.MSELoss = KeypointLoss().to(self.device)
         self.L1Loss = L1Loss().to(self.device)
-        if self.args.use_template:
-            self.KLLoss = KLLoss(kl_tolerance=self.args.kl_tolerance).to(self.device)
-            self.pose_encoder = SeqEncoder1D(
-                C_in=self.args.pose_dim,
-                C_out=64,
-                T_in=self.args.generate_length,
-                
-            )
-            self.mu_fc = nn.Linear(64, self.args.template_length)
-            self.var_fc = nn.Linear(64, self.args.template_length)
-
-        super().__init__(args)
-
-    def __reparam(self, mu, log_var):
-        std=torch.exp(0.5*log_var)
-        eps=torch.randn_like(std, device=self.device)
-        z=eps*std+mu
-        return z
+        self.KLLoss = KLLoss(kl_tolerance=self.config.Train.weights.kl_tolerance).to(self.device)
+        super().__init__(args, config)
 
     def __call__(self, bat):
         assert (not self.args.infer), "infer mode"
@@ -340,28 +362,16 @@ class TrainWrapper(TrainWrapperBaseClass):
         aud, gt_poses, pre_poses = bat['aud_feat'].to(self.device).to(torch.float32), bat['poses'].to(self.device).to(torch.float32), bat['pre_poses'].to(torch.float32).to(self.device)
 
         gt_conf = bat['conf'].to(self.device).to(torch.float32)
-
-        if self.args.use_template:
-            pose_enc = self.pose_encoder(gt_poses)
-            mu = self.mu_fc(pose_enc)
-            var = self.var_fc(pose_enc)
-            template = self.__reparam(mu, var)
-            kld_loss = self.KLLoss(mu, var)
-        else:
-            template = None
-            kld_loss = 0
-
         aud = aud.permute(0, 2, 1)
         gt_poses = gt_poses.permute(0, 2, 1)
         pre_poses = pre_poses.permute(0, 2, 1)
         gt_conf = gt_conf.permute(0, 2, 1)
 
 
-        if self.args.use_template:
-            pred_poses = self.generator(
+        pred_poses, template, mu, var = self.generator(
                 in_spec = aud,
                 pre_poses = pre_poses,
-                template = template
+                gt_poses = gt_poses
             )
 
         
@@ -369,7 +379,8 @@ class TrainWrapper(TrainWrapperBaseClass):
             pred_poses = pred_poses.detach(),
             gt_poses = gt_poses,
             mode='training_D',
-            gt_conf=gt_conf)
+            gt_conf=gt_conf,
+        )
         
         self.discriminator_optimizer.zero_grad()
         D_loss.backward()
@@ -380,17 +391,17 @@ class TrainWrapper(TrainWrapperBaseClass):
             pred_poses = pred_poses,
             gt_poses = gt_poses,
             mode = 'training_G',
-            gt_conf = gt_conf
+            gt_conf = gt_conf,
+            template = template,
+            mu = mu,
+            var = var
         )
         self.generator_optimizer.zero_grad()
-        G_loss += kld_loss
         G_loss.backward()
         self.generator_optimizer.step()
 
         total_loss = None
         loss_dict = {}
-        if self.args.use_template:
-            loss_dict['kld_loss'] = kld_loss
         for key in list(D_loss_dict.keys()) + list(G_loss_dict.keys()):
             loss_dict[key] = G_loss_dict.get(key, 0) + D_loss_dict.get(key, 0)
         
@@ -400,7 +411,10 @@ class TrainWrapper(TrainWrapperBaseClass):
         pred_poses,
         gt_poses,
         mode='training_G',
-        gt_conf=None 
+        gt_conf=None ,
+        template = None,
+        mu = None,
+        var = None
     ):
         loss_dict = {}
         target_motion = gt_poses[:, 1:]  - gt_poses[:, :-1]
@@ -417,8 +431,13 @@ class TrainWrapper(TrainWrapperBaseClass):
             l1_loss = self.L1Loss(pred_poses, gt_poses)
             dis_output = self.discriminator(pred_motion)
             gen_error = self.MSELoss(torch.ones_like(dis_output).to(self.device), dis_output)
-            gen_loss = self.args.keypoint_loss_weight * l1_loss + self.args.gan_loss_weight * gen_error
+            gen_loss = self.config.Train.weights.keypoint_loss_weight * l1_loss + self.config.Train.weights.gan_loss_weight * gen_error
 
+            if template is not None:
+                kld_loss = self.KLLoss(mu, var)
+            else: kld_loss = 0
+            gen_loss += kld_loss
+            loss_dict['kld_loss'] = kld_loss
             loss_dict['gen'] = gen_error
             loss_dict['l1_loss'] = l1_loss
             return gen_loss, loss_dict
@@ -426,27 +445,24 @@ class TrainWrapper(TrainWrapperBaseClass):
             raise ValueError(mode)
  
     def infer_on_audio(self, aud_fn, initial_pose=None, norm_stats=None, **kwargs):
-        '''
-        initial_pose: (B, C, T)
-        '''
         output = []
         assert self.args.infer, "train mode"
         self.generator.eval()
 
-        if self.args.normalization:
+        if self.config.Data.pose.normalization:
             assert norm_stats is not None
             data_mean = norm_stats[0]
             data_std = norm_stats[1]
 
-        pre_length = self.args.pre_pose_length
-        generate_length = self.args.generate_length
+        pre_length = self.config.Data.pose.pre_pose_length
+        generate_length = self.config.Data.pose.generate_length
         assert pre_length == initial_pose.shape[-1]
         pre_poses = initial_pose.permute(0, 2, 1).to(self.device).to(torch.float32)
         B=pre_poses.shape[0]
         
 
         
-        aud_feat = get_melspec(aud_fn).transpose(1, 0)
+        aud_feat = get_mfcc_psf(aud_fn).transpose(1, 0)
         num_poses_to_generate = aud_feat.shape[-1]
         if False: 
             num_steps = math.ceil(num_poses_to_generate / generate_length) + 1
@@ -484,10 +500,10 @@ class TrainWrapper(TrainWrapperBaseClass):
 
             with torch.no_grad():
                 aud_feat = aud_feat.permute(0, 2, 1)
-                pred_poses = self.generator(aud_feat, pre_poses, time_steps = num_poses_to_generate)
+                pred_poses = self.generator(aud_feat, pre_poses, gt_poses=None, time_steps = num_poses_to_generate)
                 pred_poses = pred_poses.cpu().numpy()
             output = pred_poses
-        if self.args.normalization:
+        if self.config.Data.pose.normalization:
             output = denormalize(output, data_mean, data_std)
         
         print(output.shape)
@@ -509,5 +525,6 @@ if __name__ == '__main__':
     print(output.shape) 
 
     
+
 
 

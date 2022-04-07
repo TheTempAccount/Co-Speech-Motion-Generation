@@ -35,6 +35,16 @@ def init_model(model_name, model_path, args, config):
                 torch.zeros([1,1,108]),
                 torch.ones([1, 1, 108])
             )
+    elif model_name == 'S2G':
+        generator = S2G_Generator(
+                args,
+                config,
+            )
+    elif model_name == 'Tmpt':
+        generator = S2G_Generator(
+                args,
+                config,
+            )
     else:
         raise NotImplementedError
     
