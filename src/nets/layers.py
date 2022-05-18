@@ -7,8 +7,6 @@ import torch.nn as nn
 import numpy as np
 from nets.graph_definition import *
 
-#TODO: be aware of the actual netork structures
-
 def get_log(x):
     log=0
     while x>1:

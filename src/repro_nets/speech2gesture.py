@@ -1,6 +1,3 @@
-'''
-not exactly the same as the official repo but the results are good
-'''
 import sys
 import os
 sys.path.append(os.getcwd())

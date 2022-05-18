@@ -1,5 +1,4 @@
 import numpy as np
-# import librosa #has to do this cause librosa is not supported on my server
 import python_speech_features
 from scipy.io import wavfile
 from scipy import signal

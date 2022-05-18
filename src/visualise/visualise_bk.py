@@ -1,6 +1,3 @@
-'''
-和visualize_generation完全相同
-'''
 import os
 import sys
 sys.path.append(os.getcwd())

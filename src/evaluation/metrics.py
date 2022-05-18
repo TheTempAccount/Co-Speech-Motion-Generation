@@ -1,6 +1,3 @@
-'''
-Warning: metrics are for reference only, may have limited significance
-'''
 import os
 import sys
 sys.path.append(os.getcwd())
@@ -129,3 +126,6 @@ def mode_transition_consistency(query, target):
     accuracy = np.mean(query == target.astype(int))
 
     return precision, recall, accuracy
+
+if __name__ == "__main__":
+    pass

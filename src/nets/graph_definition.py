@@ -1,10 +1,3 @@
-'''
-给出body graph的定义。我们肢体部分使用12个点，手掌使用21个点，总共54个点。分成三个部分：左右手、左右手臂、躯干
-逐步添加graph的定义：
-body graph -> 相似部位共享权重 -> 类邻接矩阵
-
-actually this is for my FYP
-'''
 import numpy as np
 
 num_joints = 54
