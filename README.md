@@ -2,8 +2,8 @@
 
 The repo for work "Free-form Co-Speech Gesture Generation"
 
-- [x] code 
-- [x] data preparation (partially)
+- source code 
+- data preparation (partially)
 
 ### Video Demo
 [![](https://res.cloudinary.com/marcomontalbano/image/upload/v1639640143/video_to_markdown/images/youtube--Wb5VYqKX_x0-c05b58ac6eb4c4700831b2b3070cd403.jpg)](https://youtu.be/Wb5VYqKX_x0 "")
