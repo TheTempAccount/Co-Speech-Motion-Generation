@@ -1,4 +1,4 @@
-# Free-form Co-Speech Gesture Generation
+# Freeform Co-Speech Gesture Generation
 
 The repo for work "Free-form Co-Speech Gesture Generation"
 
